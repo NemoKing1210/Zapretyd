@@ -1,6 +1,6 @@
 use crate::types::AppSettings;
 use std::{fs, path::PathBuf, sync::Mutex};
-use tauri::State;
+use tauri::{AppHandle, State};
 
 pub struct AppState {
     pub config_dir: PathBuf,
@@ -38,7 +38,11 @@ pub fn get_settings(state: State<AppState>) -> Result<AppSettings, String> {
     Ok(state.settings.lock().map_err(|e| e.to_string())?.clone())
 }
 #[tauri::command]
-pub fn save_settings(settings: AppSettings, state: State<AppState>) -> Result<(), String> {
+pub fn save_settings(
+    settings: AppSettings,
+    state: State<AppState>,
+    app: AppHandle,
+) -> Result<(), String> {
     if let Some(path) = &settings.library_path {
         let path = crate::library::validate_library_path(path)?;
         fs::create_dir_all(path.join("versions")).map_err(|e| e.to_string())?;
@@ -46,6 +50,8 @@ pub fn save_settings(settings: AppSettings, state: State<AppState>) -> Result<()
     let mut saved = state.settings.lock().map_err(|e| e.to_string())?;
     state.persist(&settings)?;
     *saved = settings;
+    drop(saved);
+    let _ = crate::tray::rebuild_menu(&app);
     Ok(())
 }
 pub fn administrator() -> bool {

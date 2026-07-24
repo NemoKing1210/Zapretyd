@@ -2,20 +2,22 @@ mod app;
 mod library;
 mod releases;
 mod service;
+mod tray;
 mod types;
 mod window_chrome;
 
 use app::AppState;
-use tauri::Manager;
+use tauri::{Manager, RunEvent, WindowEvent};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let app = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             app.manage(AppState::load(app.path().app_config_dir()?)?);
             window_chrome::init_window_chrome(app.handle());
+            tray::init_tray(app.handle())?;
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -40,6 +42,22 @@ pub fn run() {
             service::stop_service,
             service::remove_service
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running Zapretyd");
+        .build(tauri::generate_context!())
+        .expect("error while building Zapretyd");
+
+    app.run(|app, event| {
+        if let RunEvent::WindowEvent {
+            label,
+            event: WindowEvent::CloseRequested { api, .. },
+            ..
+        } = event
+        {
+            if label == "main" {
+                api.prevent_close();
+                if let Some(window) = app.get_webview_window("main") {
+                    let _ = window.hide();
+                }
+            }
+        }
+    });
 }

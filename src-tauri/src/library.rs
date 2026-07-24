@@ -123,7 +123,7 @@ fn flatten_single_root_dir(target: &Path) -> Result<(), String> {
 pub fn installed_tags(base: &str) -> Result<Vec<String>, String> {
     Ok(list_versions_at(base)?.into_iter().map(|v| v.tag).collect())
 }
-fn list_versions_at(base: &str) -> Result<Vec<InstalledVersion>, String> {
+pub(crate) fn list_versions_at(base: &str) -> Result<Vec<InstalledVersion>, String> {
     let root = versions_dir(base);
     if !root.exists() {
         return Ok(vec![]);
