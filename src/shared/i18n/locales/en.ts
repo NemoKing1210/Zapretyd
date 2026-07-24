@@ -11,7 +11,7 @@ export const en = {
   'shell.adminMissing': 'No administrator rights',
   'shell.checkingReleases': 'Checking releases…',
   'shell.downloadingVersion': 'Downloading…',
-  'shell.latestVersion': 'Latest {{tag}}',
+  'shell.latestVersion': 'Latest version {{tag}}',
   'shell.appVersion': 'v{{version}}',
   'shell.collapseSidebar': 'Collapse sidebar',
   'shell.expandSidebar': 'Expand sidebar',

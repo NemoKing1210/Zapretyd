@@ -35,6 +35,9 @@ import {
   useTranslation,
   type LocalePreference,
 } from '../../../shared/i18n';
+import { reportCaughtError } from '../../../shared/lib/errorLog';
+import { pathsEqual } from '../../../shared/lib/format';
+import { ErrorAlert } from '../../../shared/ui/ErrorAlert';
 
 const PROJECT_REPO_URL = 'https://github.com/NemoKing1210/Zapretyd';
 const AUTHOR_URL = 'https://github.com/NemoKing1210';
@@ -91,37 +94,76 @@ function SettingsSection({
 
 export function SettingsPage({
   settings,
+  defaultLibraryPath,
   onSave,
 }: {
   settings: AppSettings;
+  defaultLibraryPath?: string;
   onSave: (
     settings: AppSettings,
     reason?: 'theme' | 'locale' | 'library',
   ) => Promise<void>;
 }) {
-  const { t, localePreference, setLocalePreference } = useTranslation();
+  const { t, localePreference, setLocalePreference, translateError } = useTranslation();
   const { setMode } = useColorScheme();
-  const [defaultPath, setDefaultPath] = useState('');
+  const [defaultPath, setDefaultPath] = useState(defaultLibraryPath ?? '');
+  const [libraryBusy, setLibraryBusy] = useState(false);
+  const [libraryError, setLibraryError] = useState('');
   const appVersion = import.meta.env.VITE_APP_VERSION as string;
-  const useAppFolder = Boolean(defaultPath && settings.libraryPath === defaultPath);
+  const useAppFolder = pathsEqual(settings.libraryPath, defaultPath);
   const themeMode = normalizeThemeMode(settings.theme);
 
   useEffect(() => {
-    void api.defaultLibraryPath().then(setDefaultPath);
-  }, []);
+    if (defaultLibraryPath) {
+      setDefaultPath(defaultLibraryPath);
+      return;
+    }
+    void api
+      .defaultLibraryPath()
+      .then(setDefaultPath)
+      .catch((cause) => {
+        reportCaughtError(cause, { source: 'settings.defaultLibraryPath', translate: translateError });
+        setLibraryError(String(cause));
+      });
+  }, [defaultLibraryPath, translateError]);
 
   const choose = async () => {
-    const path = await open({ directory: true, multiple: false });
-    if (typeof path === 'string') await onSave({ ...settings, libraryPath: path }, 'library');
+    setLibraryError('');
+    setLibraryBusy(true);
+    try {
+      const path = await open({
+        directory: true,
+        multiple: false,
+        title: t('settings.changeFolder'),
+      });
+      if (typeof path === 'string') await onSave({ ...settings, libraryPath: path }, 'library');
+    } catch (cause) {
+      const raw = String(cause);
+      reportCaughtError(cause, { source: 'settings.chooseLibrary', translate: translateError });
+      setLibraryError(raw);
+    } finally {
+      setLibraryBusy(false);
+    }
   };
 
   const toggleAppFolder = async (checked: boolean) => {
-    if (checked) {
-      const libraryPath = defaultPath || (await api.defaultLibraryPath());
-      await onSave({ ...settings, libraryPath }, 'library');
+    setLibraryError('');
+    if (!checked) {
+      await choose();
       return;
     }
-    await choose();
+    setLibraryBusy(true);
+    try {
+      const libraryPath = defaultPath || (await api.defaultLibraryPath());
+      if (!defaultPath) setDefaultPath(libraryPath);
+      await onSave({ ...settings, libraryPath }, 'library');
+    } catch (cause) {
+      const raw = String(cause);
+      reportCaughtError(cause, { source: 'settings.useAppFolder', translate: translateError });
+      setLibraryError(raw);
+    } finally {
+      setLibraryBusy(false);
+    }
   };
 
   const changeLocale = async (preference: LocalePreference) => {
@@ -234,7 +276,7 @@ export function SettingsPage({
           control={
             <Switch
               checked={useAppFolder}
-              disabled={!defaultPath}
+              disabled={!defaultPath || libraryBusy}
               onChange={(_, checked) => void toggleAppFolder(checked)}
             />
           }
@@ -242,9 +284,19 @@ export function SettingsPage({
           sx={{ mt: 1.5, display: 'flex' }}
         />
         {!useAppFolder && (
-          <Button variant="text" startIcon={<FolderOpenOutlined />} onClick={() => void choose()}>
+          <Button
+            variant="text"
+            startIcon={<FolderOpenOutlined />}
+            onClick={() => void choose()}
+            disabled={libraryBusy}
+          >
             {t('settings.changeFolder')}
           </Button>
+        )}
+        {libraryError && (
+          <Box sx={{ mt: 2 }}>
+            <ErrorAlert message={t('error.generic')} details={libraryError} />
+          </Box>
         )}
       </SettingsSection>
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { setLocale } from '../i18n';
-import { formatBytes, formatVersionPath } from './format';
+import { formatBytes, formatVersionPath, pathsEqual } from './format';
 
 describe('formatBytes', () => {
   it('formats megabytes in English', () => {
@@ -11,6 +11,14 @@ describe('formatBytes', () => {
   it('formats megabytes in Russian', () => {
     setLocale('ru');
     expect(formatBytes(2 * 1024 * 1024)).toMatch(/МБ/i);
+  });
+});
+
+describe('pathsEqual', () => {
+  it('compares Windows paths case-insensitively', () => {
+    expect(
+      pathsEqual(String.raw`C:\Zapretyd\library`, String.raw`c:/Zapretyd/library/`),
+    ).toBe(true);
   });
 });
 

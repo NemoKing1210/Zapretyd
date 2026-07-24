@@ -13,7 +13,7 @@ export const ru: Record<TranslationKey, string> = {
   'shell.adminMissing': 'Без прав администратора',
   'shell.checkingReleases': 'Проверка релизов…',
   'shell.downloadingVersion': 'Скачивание…',
-  'shell.latestVersion': 'Последняя {{tag}}',
+  'shell.latestVersion': 'Последняя версия {{tag}}',
   'shell.appVersion': 'v{{version}}',
   'shell.collapseSidebar': 'Свернуть панель',
   'shell.expandSidebar': 'Развернуть панель',

@@ -25,6 +25,23 @@ export const theme = createTheme({
     h5: { fontWeight: 700 },
   },
   components: {
+    MuiCssBaseline: {
+      styleOverrides: {
+        'html, body, #root': {
+          userSelect: 'none',
+          WebkitUserSelect: 'none',
+        },
+        'input, textarea, [contenteditable="true"]': {
+          userSelect: 'text',
+          WebkitUserSelect: 'text',
+        },
+        'html[data-allow-text-select], html[data-allow-text-select] body, html[data-allow-text-select] #root':
+          {
+            userSelect: 'text',
+            WebkitUserSelect: 'text',
+          },
+      },
+    },
     MuiCard: {
       styleOverrides: { root: { boxShadow: 'none', border: '1px solid rgba(80, 90, 110, .16)' } },
     },

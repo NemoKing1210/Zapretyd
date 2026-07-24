@@ -14,6 +14,7 @@ import {
   installGlobalErrorHandlers,
   reportCaughtError,
 } from '../shared/lib/errorLog';
+import { pathsEqual } from '../shared/lib/format';
 import { PageTransition } from '../shared/ui/PageTransition';
 import { ErrorAlert } from '../shared/ui/ErrorAlert';
 import { ToastProvider, useToast } from '../shared/ui/toast';
@@ -181,6 +182,20 @@ function AppBody() {
   useEffect(() => {
     if (!import.meta.env.DEV && page === 'logs') setPage('overview');
   }, [page]);
+  useEffect(() => {
+    const root = document.documentElement;
+    const allowSelect = page === 'logs';
+    if (allowSelect) root.setAttribute('data-allow-text-select', '');
+    else root.removeAttribute('data-allow-text-select');
+    const onContextMenu = (event: MouseEvent) => {
+      if (!allowSelect) event.preventDefault();
+    };
+    document.addEventListener('contextmenu', onContextMenu);
+    return () => {
+      document.removeEventListener('contextmenu', onContextMenu);
+      root.removeAttribute('data-allow-text-select');
+    };
+  }, [page]);
   const saveSettings = async (
     next: AppSettings,
     toastKey:
@@ -251,7 +266,7 @@ function AppBody() {
   }, []);
   if (!settings) return null;
   const useAppLibrary = Boolean(
-    defaultLibraryPath && settings.libraryPath === defaultLibraryPath,
+    defaultLibraryPath && pathsEqual(settings.libraryPath, defaultLibraryPath),
   );
   const content =
     page === 'overview' ? (
@@ -322,6 +337,7 @@ function AppBody() {
     ) : (
       <SettingsPage
         settings={settings}
+        defaultLibraryPath={defaultLibraryPath}
         onSave={(next, reason) =>
           saveSettings(
             next,

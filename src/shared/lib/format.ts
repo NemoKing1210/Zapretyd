@@ -4,6 +4,12 @@ const intlLocale = () => (getLocale() === 'ru' ? 'ru-RU' : 'en-US');
 
 const normalizePath = (value: string) => value.replace(/[/\\]+$/, '').replaceAll('/', '\\');
 
+/** Case-insensitive path equality for Windows library folders. */
+export function pathsEqual(a?: string, b?: string): boolean {
+  if (!a || !b) return false;
+  return normalizePath(a).toLowerCase() === normalizePath(b).toLowerCase();
+}
+
 /** When using the app library folder, show a short path like `versions\1.10.0`. */
 export function formatVersionPath(
   path: string,
@@ -16,7 +22,7 @@ export function formatVersionPath(
   if (full.toLowerCase().startsWith(root.toLowerCase() + '\\')) {
     return full.slice(root.length + 1);
   }
-  if (full.toLowerCase() === root.toLowerCase()) return '.';
+  if (pathsEqual(full, root)) return '.';
   return path;
 }
 
