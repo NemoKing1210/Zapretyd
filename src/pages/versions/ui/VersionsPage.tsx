@@ -19,29 +19,38 @@ import { AllReleasesList } from './AllReleasesList';
 import { InstalledVersionsList } from './InstalledVersionsList';
 
 type ViewMode = 'installed' | 'all';
+type NetworkStatus = 'ok' | 'offline' | 'unreachable';
 
 export function VersionsPage({
   versions,
   latestTag,
   releaseCount,
-  online,
+  libraryPath,
+  shortenPaths,
+  releasesOnline,
+  networkStatus,
   busy,
   error,
   installingTag,
   onInstall,
   onRemove,
   onOpen,
+  onReleasesReachable,
 }: {
   versions: InstalledVersion[];
   latestTag?: string;
   releaseCount?: number;
-  online: boolean;
+  libraryPath?: string;
+  shortenPaths?: boolean;
+  releasesOnline: boolean;
+  networkStatus: NetworkStatus;
   busy: boolean;
   error?: string;
   installingTag?: string;
   onInstall: (release: ReleaseInfo, force?: boolean) => void;
   onRemove: (tag: string) => void;
   onOpen: (path: string) => void;
+  onReleasesReachable: () => void;
 }) {
   const { t, translateError } = useTranslation();
   const [view, setView] = useState<ViewMode>('installed');
@@ -64,6 +73,7 @@ export function VersionsPage({
         setPage(result.page);
         setHasMore(result.hasMore);
         setLoadedOnce(true);
+        onReleasesReachable();
       } catch (cause) {
         setListError(translateError(String(cause)));
       } finally {
@@ -71,16 +81,23 @@ export function VersionsPage({
         setLoadingMore(false);
       }
     },
-    [translateError],
+    [onReleasesReachable, translateError],
   );
 
   useEffect(() => {
-    if (view !== 'all' || loadedOnce || loading || !online) return;
+    if (view !== 'all' || loadedOnce || loading || !releasesOnline) return;
     void loadPage(1, false);
-  }, [view, loadedOnce, loading, loadPage, online]);
+  }, [view, loadedOnce, loading, loadPage, releasesOnline]);
 
   const allCountLabel =
     releaseCount !== undefined ? String(releaseCount) : loadedOnce ? String(releases.length) : '…';
+
+  const networkAlert =
+    networkStatus === 'offline'
+      ? t('versions.offline')
+      : networkStatus === 'unreachable'
+        ? t('versions.githubUnavailable')
+        : null;
 
   return (
     <Stack spacing={3}>
@@ -90,7 +107,7 @@ export function VersionsPage({
           {t('versions.subtitle')}
         </Typography>
       </Box>
-      {!online && <Alert severity="warning">{t('versions.offline')}</Alert>}
+      {networkAlert && <Alert severity="warning">{networkAlert}</Alert>}
       <ToggleButtonGroup
         exclusive
         color="primary"
@@ -119,6 +136,8 @@ export function VersionsPage({
           <InstalledVersionsList
             versions={versions}
             latestTag={latestTag}
+            libraryPath={libraryPath}
+            shortenPaths={shortenPaths}
             onRemove={onRemove}
             onOpen={onOpen}
             onBrowseAll={() => setView('all')}
@@ -128,8 +147,10 @@ export function VersionsPage({
             releases={releases}
             versions={versions}
             latestTag={latestTag}
-            online={online}
-            loading={online && (loading || (!loadedOnce && !listError))}
+            libraryPath={libraryPath}
+            shortenPaths={shortenPaths}
+            online={releasesOnline}
+            loading={releasesOnline && (loading || (!loadedOnce && !listError))}
             loadingMore={loadingMore}
             hasMore={hasMore}
             error={listError || error}
@@ -137,6 +158,7 @@ export function VersionsPage({
             onLoadMore={() => void loadPage(page + 1, true)}
             onInstall={onInstall}
             onRemove={onRemove}
+            onOpen={onOpen}
           />
         )}
       </PageTransition>

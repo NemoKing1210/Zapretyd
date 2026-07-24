@@ -10,6 +10,8 @@ export const ru: Record<TranslationKey, string> = {
   'shell.strategy': '{{name}}',
   'shell.adminGranted': 'Админ',
   'shell.adminMissing': 'Без прав администратора',
+  'shell.checkingReleases': 'Проверка релизов…',
+  'shell.downloadingVersion': 'Скачивание…',
   'shell.appVersion': 'v{{version}}',
   'shell.collapseSidebar': 'Свернуть панель',
   'shell.expandSidebar': 'Развернуть панель',
@@ -58,6 +60,8 @@ export const ru: Record<TranslationKey, string> = {
   'versions.tabAll': 'Все версии',
   'versions.offline':
     'Нет доступа к интернету. Без сети нельзя скачать, переустановить или подгрузить релизы.',
+  'versions.githubUnavailable':
+    'Не удалось связаться с GitHub. Скачивание, переустановка и подгрузка релизов временно недоступны.',
   'versions.published': 'Опубликован {{date}} · {{size}}',
   'versions.download': 'Скачать',
   'versions.reinstall': 'Переустановить',
@@ -72,7 +76,6 @@ export const ru: Record<TranslationKey, string> = {
   'versions.installed': 'Установлена {{date}} · {{size}}',
   'versions.latest': 'Последняя',
   'versions.active': 'Активна',
-  'versions.open': 'Открыть',
   'versions.remove': 'Удалить',
   'versions.loadMore': 'Загрузить ещё',
   'versions.notes': 'Описание',

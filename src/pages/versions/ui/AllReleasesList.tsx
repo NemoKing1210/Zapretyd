@@ -15,13 +15,14 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  Link,
   Skeleton,
   Stack,
   Typography,
 } from '@mui/material';
 import type { InstalledVersion, ReleaseInfo } from '../../../shared/api/zapretyd';
 import { useTranslation } from '../../../shared/i18n';
-import { formatBytes, formatDate } from '../../../shared/lib/format';
+import { formatBytes, formatDate, formatVersionPath } from '../../../shared/lib/format';
 import { ReleaseNotesBody } from './ReleaseNotesBody';
 
 type ConfirmAction =
@@ -32,6 +33,8 @@ export function AllReleasesList({
   releases,
   versions,
   latestTag,
+  libraryPath,
+  shortenPaths = false,
   online,
   loading,
   loadingMore,
@@ -41,10 +44,13 @@ export function AllReleasesList({
   onLoadMore,
   onInstall,
   onRemove,
+  onOpen,
 }: {
   releases: ReleaseInfo[];
   versions: InstalledVersion[];
   latestTag?: string;
+  libraryPath?: string;
+  shortenPaths?: boolean;
   online: boolean;
   loading: boolean;
   loadingMore: boolean;
@@ -54,6 +60,7 @@ export function AllReleasesList({
   onLoadMore: () => void;
   onInstall: (release: ReleaseInfo, force?: boolean) => void | Promise<void>;
   onRemove: (tag: string) => void | Promise<void>;
+  onOpen: (path: string) => void;
 }) {
   const { t } = useTranslation();
   const [expandedTag, setExpandedTag] = useState<string | false>(false);
@@ -158,6 +165,25 @@ export function AllReleasesList({
                       size: formatBytes(release.size),
                     })}
                   </Typography>
+                  {installed && (
+                    <Link
+                      component="button"
+                      type="button"
+                      variant="caption"
+                      onClick={() => onOpen(installed.path)}
+                      sx={{
+                        display: 'block',
+                        mt: 0.75,
+                        maxWidth: '100%',
+                        textAlign: 'left',
+                        wordBreak: 'break-all',
+                        cursor: 'pointer',
+                        color: 'primary.main',
+                      }}
+                    >
+                      {formatVersionPath(installed.path, libraryPath, shortenPaths)}
+                    </Link>
+                  )}
                 </Box>
                 {installed ? (
                   <Stack direction="row" spacing={1} flexShrink={0} flexWrap="wrap" useFlexGap>

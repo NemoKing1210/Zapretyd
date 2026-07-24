@@ -8,6 +8,8 @@ export const en = {
   'shell.strategy': '{{name}}',
   'shell.adminGranted': 'Admin',
   'shell.adminMissing': 'No administrator rights',
+  'shell.checkingReleases': 'Checking releases…',
+  'shell.downloadingVersion': 'Downloading…',
   'shell.appVersion': 'v{{version}}',
   'shell.collapseSidebar': 'Collapse sidebar',
   'shell.expandSidebar': 'Expand sidebar',
@@ -56,6 +58,8 @@ export const en = {
   'versions.tabAll': 'All versions',
   'versions.offline':
     'No internet connection. You cannot download, reinstall, or load more releases until you are back online.',
+  'versions.githubUnavailable':
+    'Could not reach the GitHub releases API. Download, reinstall, and loading more releases are unavailable until the connection is restored.',
   'versions.published': 'Published {{date}} · {{size}}',
   'versions.download': 'Download',
   'versions.reinstall': 'Reinstall',
@@ -70,7 +74,6 @@ export const en = {
   'versions.installed': 'Installed {{date}} · {{size}}',
   'versions.latest': 'Latest',
   'versions.active': 'Active',
-  'versions.open': 'Open',
   'versions.remove': 'Remove',
   'versions.loadMore': 'Load more',
   'versions.notes': 'Release notes',

@@ -140,6 +140,7 @@ fn list_versions_at(base: &str) -> Result<Vec<InstalledVersion>, String> {
             .ok()
             .and_then(|s| serde_json::from_str::<InstalledVersion>(&s).ok());
         if let Some(mut version) = data {
+            version.path = entry.path().to_string_lossy().into();
             let payload = resolve_version_payload_dir(&entry.path());
             version.is_active = active
                 .as_ref()

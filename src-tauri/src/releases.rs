@@ -131,13 +131,12 @@ async fn fetch_and_store_catalog(state: &AppState) -> Result<ReleaseCatalog, Str
     let page: Vec<GithubRelease> = count_response.json().await.map_err(|e| e.to_string())?;
     let release_count = release_count_from_headers(&headers, page.len());
 
-    {
-        let mut settings = state.settings.lock().map_err(|e| e.to_string())?;
+    if let Ok(mut settings) = state.settings.lock() {
         settings.cached_latest_tag = Some(latest_tag.clone());
         settings.cached_release_count = Some(release_count);
         settings.last_update_check = Some(Utc::now().to_rfc3339());
         settings.latest_etag = etag;
-        state.persist(&settings)?;
+        let _ = state.persist(&settings);
     }
 
     Ok(ReleaseCatalog {

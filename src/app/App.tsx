@@ -28,7 +28,9 @@ export function App() {
   const [installingTag, setInstallingTag] = useState<string>();
   const [serviceBusy, setServiceBusy] = useState(false);
   const [error, setError] = useState('');
-  const [online, setOnline] = useState(true);
+  const [releasesNetwork, setReleasesNetwork] = useState<'ok' | 'offline' | 'unreachable'>('ok');
+  const [catalogLoading, setCatalogLoading] = useState(true);
+  const [defaultLibraryPath, setDefaultLibraryPath] = useState<string>();
   const showError = useCallback(
     (cause: unknown) => setError(translateError(String(cause))),
     [translateError],
@@ -43,9 +45,14 @@ export function App() {
     }
   }, [showError]);
   const refreshCatalog = useCallback(async () => {
+    setCatalogLoading(true);
     try {
       const catalog = await api.refreshReleaseCatalog();
-      setOnline(!catalog.fromCache);
+      if (catalog.fromCache) {
+        setReleasesNetwork(navigator.onLine ? 'unreachable' : 'offline');
+      } else {
+        setReleasesNetwork('ok');
+      }
       setSettings((prev) =>
         prev
           ? {
@@ -56,10 +63,13 @@ export function App() {
           : prev,
       );
     } catch {
-      setOnline(false);
+      setReleasesNetwork(navigator.onLine ? 'unreachable' : 'offline');
+    } finally {
+      setCatalogLoading(false);
     }
   }, []);
   useEffect(() => {
+    api.defaultLibraryPath().then(setDefaultLibraryPath).catch(() => undefined);
     api.settings()
       .then(async (initial) => {
         setSettings(initial);
@@ -70,7 +80,9 @@ export function App() {
   }, [refresh, refreshCatalog, showError]);
   useEffect(() => {
     const onOnline = () => void refreshCatalog();
-    const onOffline = () => setOnline(false);
+    const onOffline = () => {
+      if (!navigator.onLine) setReleasesNetwork('offline');
+    };
     window.addEventListener('online', onOnline);
     window.addEventListener('offline', onOffline);
     return () => {
@@ -120,7 +132,11 @@ export function App() {
       setServiceBusy(false);
     }
   };
+  const markReleasesReachable = useCallback(() => setReleasesNetwork('ok'), []);
   if (!settings) return null;
+  const useAppLibrary = Boolean(
+    defaultLibraryPath && settings.libraryPath === defaultLibraryPath,
+  );
   const content =
     page === 'overview' ? (
       <OverviewPage
@@ -140,13 +156,17 @@ export function App() {
         versions={versions}
         latestTag={settings.cachedLatestTag}
         releaseCount={settings.cachedReleaseCount}
-        online={online}
+        libraryPath={settings.libraryPath}
+        shortenPaths={useAppLibrary}
+        releasesOnline={releasesNetwork === 'ok'}
+        networkStatus={releasesNetwork}
         busy={busy}
         error={error}
         installingTag={installingTag}
         onInstall={install}
         onRemove={(tag) => runAction(() => api.removeVersion(tag))}
         onOpen={(path) => runAction(() => api.openDirectory(path))}
+        onReleasesReachable={markReleasesReachable}
       />
     ) : (
       <SettingsPage settings={settings} onSave={saveSettings} />
@@ -155,7 +175,13 @@ export function App() {
     <ThemeProvider theme={theme} defaultMode={normalizeThemeMode(settings.theme)}>
       <CssBaseline />
       <WindowChromeSync theme={settings.theme} />
-      <AppShell page={page} onPage={setPage} status={status} installedCount={versions.length}>
+      <AppShell
+        page={page}
+        onPage={setPage}
+        status={status}
+        installedCount={versions.length}
+        syncing={busy ? 'download' : catalogLoading ? 'catalog' : undefined}
+      >
         <PageTransition pageKey={page}>
           {error && page !== 'versions' && (
             <div role="alert" style={{ color: '#ba1a1a', marginBottom: 16 }}>

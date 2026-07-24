@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { DeleteOutline, FolderOpenOutlined } from '@mui/icons-material';
+import { DeleteOutline } from '@mui/icons-material';
 import {
   Alert,
   Box,
@@ -13,22 +13,27 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  Link,
   Stack,
   Typography,
 } from '@mui/material';
 import type { InstalledVersion } from '../../../shared/api/zapretyd';
 import { useTranslation } from '../../../shared/i18n';
-import { formatBytes, formatDate } from '../../../shared/lib/format';
+import { formatBytes, formatDate, formatVersionPath } from '../../../shared/lib/format';
 
 export function InstalledVersionsList({
   versions,
   latestTag,
+  libraryPath,
+  shortenPaths = false,
   onRemove,
   onOpen,
   onBrowseAll,
 }: {
   versions: InstalledVersion[];
   latestTag?: string;
+  libraryPath?: string;
+  shortenPaths?: boolean;
   onRemove: (tag: string) => void | Promise<void>;
   onOpen: (path: string) => void;
   onBrowseAll: () => void;
@@ -94,20 +99,27 @@ export function InstalledVersionsList({
                     size: formatBytes(version.size),
                   })}
                 </Typography>
-                <Typography color="text.secondary" variant="caption" display="block">
-                  {version.path}
-                </Typography>
+                <Link
+                  component="button"
+                  type="button"
+                  variant="caption"
+                  onClick={() => onOpen(version.path)}
+                  sx={{
+                    display: 'block',
+                    mt: 0.75,
+                    maxWidth: '100%',
+                    textAlign: 'left',
+                    wordBreak: 'break-all',
+                    cursor: 'pointer',
+                    color: 'primary.main',
+                  }}
+                >
+                  {formatVersionPath(version.path, libraryPath, shortenPaths)}
+                </Link>
               </Box>
             </Stack>
           </CardContent>
           <CardActions>
-            <Button
-              variant="text"
-              startIcon={<FolderOpenOutlined />}
-              onClick={() => onOpen(version.path)}
-            >
-              {t('versions.open')}
-            </Button>
             <Button
               variant="text"
               color="error"

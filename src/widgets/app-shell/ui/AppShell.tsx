@@ -14,6 +14,7 @@ import {
   Badge,
   Box,
   Chip,
+  CircularProgress,
   Drawer,
   IconButton,
   List,
@@ -53,12 +54,14 @@ export function AppShell({
   onPage,
   status,
   installedCount = 0,
+  syncing,
   children,
 }: {
   page: PageKey;
   onPage: (page: PageKey) => void;
   status?: ServiceStatus;
   installedCount?: number;
+  syncing?: 'catalog' | 'download';
   children: React.ReactNode;
 }) {
   const { t } = useTranslation();
@@ -101,6 +104,22 @@ export function AppShell({
       >
         <Toolbar sx={{ gap: 1, justifyContent: 'flex-end', minHeight: { xs: 64 } }}>
           <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+            {syncing && (
+              <Chip
+                size="small"
+                color="primary"
+                variant="outlined"
+                icon={<CircularProgress size={14} color="inherit" />}
+                label={
+                  syncing === 'download'
+                    ? t('shell.downloadingVersion')
+                    : t('shell.checkingReleases')
+                }
+                sx={{
+                  '& .MuiChip-icon': { ml: 1 },
+                }}
+              />
+            )}
             <Chip
               size="small"
               clickable
