@@ -47,6 +47,79 @@ pub fn get_default_library_path(state: State<AppState>) -> Result<String, String
 fn versions_dir(base: &str) -> PathBuf {
     Path::new(base).join("versions")
 }
+
+fn is_strategy_bat(path: &Path) -> bool {
+    let name = path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or_default();
+    path.extension()
+        .and_then(|e| e.to_str())
+        .is_some_and(|e| e.eq_ignore_ascii_case("bat"))
+        && !name.to_ascii_lowercase().starts_with("service")
+}
+
+fn directory_has_strategy_bats(dir: &Path) -> bool {
+    fs::read_dir(dir)
+        .map(|entries| {
+            entries
+                .filter_map(|entry| entry.ok())
+                .any(|entry| is_strategy_bat(&entry.path()))
+        })
+        .unwrap_or(false)
+}
+
+/// Upstream ZIPs often wrap files in a single folder (`zapret-discord-youtube-X.Y.Z/`).
+/// Prefer that folder when the version root has no strategy `.bat` files.
+fn resolve_version_payload_dir(version_dir: &Path) -> PathBuf {
+    if directory_has_strategy_bats(version_dir) {
+        return version_dir.to_path_buf();
+    }
+    let Ok(entries) = fs::read_dir(version_dir) else {
+        return version_dir.to_path_buf();
+    };
+    let dirs: Vec<PathBuf> = entries
+        .filter_map(|entry| entry.ok())
+        .map(|entry| entry.path())
+        .filter(|path| path.is_dir())
+        .collect();
+    if let Some(nested) = dirs
+        .iter()
+        .find(|path| directory_has_strategy_bats(path))
+        .cloned()
+    {
+        return nested;
+    }
+    version_dir.to_path_buf()
+}
+
+/// After ZIP extract, hoist contents when the archive had a single root directory.
+fn flatten_single_root_dir(target: &Path) -> Result<(), String> {
+    let entries: Vec<_> = fs::read_dir(target)
+        .map_err(|e| e.to_string())?
+        .filter_map(|entry| entry.ok())
+        .collect();
+    let dirs: Vec<_> = entries
+        .iter()
+        .filter(|entry| entry.path().is_dir())
+        .collect();
+    let files: Vec<_> = entries
+        .iter()
+        .filter(|entry| entry.path().is_file())
+        .collect();
+    if !(files.is_empty() && dirs.len() == 1) {
+        return Ok(());
+    }
+    let nested = dirs[0].path();
+    for entry in fs::read_dir(&nested).map_err(|e| e.to_string())? {
+        let entry = entry.map_err(|e| e.to_string())?;
+        let destination = target.join(entry.file_name());
+        fs::rename(entry.path(), &destination).map_err(|e| e.to_string())?;
+    }
+    fs::remove_dir(&nested).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
 pub fn installed_tags(base: &str) -> Result<Vec<String>, String> {
     Ok(list_versions_at(base)?.into_iter().map(|v| v.tag).collect())
 }
@@ -67,9 +140,10 @@ fn list_versions_at(base: &str) -> Result<Vec<InstalledVersion>, String> {
             .ok()
             .and_then(|s| serde_json::from_str::<InstalledVersion>(&s).ok());
         if let Some(mut version) = data {
+            let payload = resolve_version_payload_dir(&entry.path());
             version.is_active = active
                 .as_ref()
-                .is_some_and(|name| entry.path().join(name).exists());
+                .is_some_and(|name| payload.join(name).exists());
             list.push(version);
         }
     }
@@ -141,6 +215,7 @@ pub async fn install_release(
     drop(file);
     let hash = format!("{:x}", hasher.finalize());
     extract_zip(&temporary, &target)?;
+    flatten_single_root_dir(&target)?;
     let _ = fs::remove_file(&temporary);
     let version = InstalledVersion {
         tag: release.tag,
@@ -214,21 +289,18 @@ pub fn get_strategies(tag: String, state: State<AppState>) -> Result<Vec<Strateg
     if !root.exists() {
         return Err("error.library.versionNotFound".into());
     }
+    let payload = resolve_version_payload_dir(&root);
     let mut result = vec![];
-    for entry in fs::read_dir(&root).map_err(|e| e.to_string())? {
+    for entry in fs::read_dir(&payload).map_err(|e| e.to_string())? {
         let path = entry.map_err(|e| e.to_string())?.path();
-        let name = path
-            .file_name()
-            .and_then(|n| n.to_str())
-            .unwrap_or_default();
-        if path
-            .extension()
-            .and_then(|e| e.to_str())
-            .is_some_and(|e| e.eq_ignore_ascii_case("bat"))
-            && !name.to_ascii_lowercase().starts_with("service")
-        {
+        if is_strategy_bat(&path) {
+            let name = path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or_default()
+                .to_string();
             result.push(StrategyInfo {
-                name: name.into(),
+                name,
                 path: path.to_string_lossy().into(),
                 version: tag.clone(),
             });
@@ -265,5 +337,38 @@ mod tests {
     fn default_library_falls_back_for_non_ascii_config_dir() {
         let path = resolve_default_library_path(Path::new(r"C:\Users\Имя\AppData\Roaming\dev.zapretyd.desktop"));
         assert_eq!(path, PathBuf::from(ASCII_FALLBACK_LIBRARY));
+    }
+    #[test]
+    fn resolve_payload_dir_uses_nested_release_folder() {
+        let root = std::env::temp_dir().join(format!("zapretyd-nested-{}", std::process::id()));
+        let nested = root.join("zapret-discord-youtube-1.10.0");
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&nested).unwrap();
+        fs::write(root.join(".zapretyd.json"), "{}").unwrap();
+        fs::write(nested.join("general.bat"), "@echo off").unwrap();
+        fs::write(nested.join("service.bat"), "@echo off").unwrap();
+        assert_eq!(resolve_version_payload_dir(&root), nested);
+        let _ = fs::remove_dir_all(&root);
+    }
+    #[test]
+    fn resolve_payload_dir_keeps_flat_layout() {
+        let root = std::env::temp_dir().join(format!("zapretyd-flat-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(root.join("general.bat"), "@echo off").unwrap();
+        assert_eq!(resolve_version_payload_dir(&root), root);
+        let _ = fs::remove_dir_all(&root);
+    }
+    #[test]
+    fn flatten_single_root_hoists_nested_files() {
+        let root = std::env::temp_dir().join(format!("zapretyd-flatten-{}", std::process::id()));
+        let nested = root.join("zapret-discord-youtube-1.10.0");
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&nested).unwrap();
+        fs::write(nested.join("general.bat"), "@echo off").unwrap();
+        flatten_single_root_dir(&root).unwrap();
+        assert!(root.join("general.bat").is_file());
+        assert!(!nested.exists());
+        let _ = fs::remove_dir_all(&root);
     }
 }

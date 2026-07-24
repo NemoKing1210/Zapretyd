@@ -5,7 +5,9 @@ import {
   ChevronRight,
   DashboardOutlined,
   FolderOpenOutlined,
+  PlayArrowOutlined,
   SettingsOutlined,
+  StopOutlined,
 } from '@mui/icons-material';
 import {
   AppBar,
@@ -100,6 +102,7 @@ export function AppShell({
               size="small"
               clickable
               onClick={() => onPage('overview')}
+              icon={running ? <PlayArrowOutlined /> : <StopOutlined />}
               color={running ? 'success' : 'default'}
               variant={running ? 'filled' : 'outlined'}
               label={running ? t('shell.serviceRunning') : t('shell.serviceStopped')}

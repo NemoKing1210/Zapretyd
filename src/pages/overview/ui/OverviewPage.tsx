@@ -12,7 +12,6 @@ import {
   DialogContent,
   DialogTitle,
   FormControl,
-  InputAdornment,
   InputLabel,
   MenuItem,
   Select,
@@ -64,17 +63,21 @@ function StatusItem({
   pulse?: boolean;
 }) {
   return (
-    <Stack direction="row" spacing={1.25} alignItems="center" sx={{ minWidth: 0 }}>
-      <StatusDot active={active} pulse={pulse} />
-      <Box sx={{ minWidth: 0 }}>
-        <Typography variant="caption" color="text.secondary" display="block" noWrap>
-          {label}
-        </Typography>
-        <Typography variant="body2" fontWeight={600} noWrap>
-          {value}
-        </Typography>
-      </Box>
-    </Stack>
+    <Card sx={{ minWidth: 0, height: '100%' }}>
+      <CardContent sx={{ py: 2, height: '100%', '&:last-child': { pb: 2 } }}>
+        <Stack direction="row" spacing={1.25} alignItems="center" sx={{ minWidth: 0 }}>
+          <StatusDot active={active} pulse={pulse} />
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant="caption" color="text.secondary" display="block">
+              {label}
+            </Typography>
+            <Typography variant="body2" fontWeight={600}>
+              {value}
+            </Typography>
+          </Box>
+        </Stack>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -112,29 +115,23 @@ export function OverviewPage({
       setStrategiesLoading(false);
       return;
     }
-    let cancelled = false;
     setStrategiesLoading(true);
     loadStrategies(version)
-      .then((next) => {
-        if (!cancelled) setStrategies(next);
-      })
+      .then(setStrategies)
       .catch((cause) => {
-        if (!cancelled) {
-          setStrategies([]);
-          onStrategiesError(cause);
-        }
+        setStrategies([]);
+        onStrategiesError(cause);
       })
-      .finally(() => {
-        if (!cancelled) setStrategiesLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [version, loadStrategies, onStrategiesError]);
+      .finally(() => setStrategiesLoading(false));
+    // Intentionally omit onStrategiesError — parent callback identity must not retrigger loads.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- version + loadStrategies only
+  }, [version, loadStrategies]);
 
-  const picked = strategies.find((item) => item.path === strategy);
+  const picked = strategies.find((item) => item.name === strategy);
+  const latestTag = versions[0]?.tag;
   const running = Boolean(status?.serviceRunning && status.winwsRunning);
   const statusReady = status !== undefined;
+  const assignLocked = statusReady && !status.isAdmin;
   const message = status?.messageCode ? t(status.messageCode as TranslationKey) : '';
 
   return (
@@ -250,63 +247,58 @@ export function OverviewPage({
         </CardContent>
       </Card>
 
-      <Card>
-        <CardContent sx={{ py: 2, '&:last-child': { pb: 2 } }}>
-          {!statusReady ? (
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={3}>
-              {[0, 1, 2, 3].map((key) => (
-                <Skeleton key={key} variant="rounded" height={40} sx={{ flex: 1 }} />
-              ))}
-            </Stack>
-          ) : (
-            <Stack
-              direction={{ xs: 'column', sm: 'row' }}
-              spacing={{ xs: 2, sm: 3 }}
-              divider={
-                <Box
-                  sx={{
-                    display: { xs: 'none', sm: 'block' },
-                    width: '1px',
-                    alignSelf: 'stretch',
-                    bgcolor: 'divider',
-                  }}
-                />
+      <Box
+        sx={{
+          display: 'grid',
+          gap: 2,
+          gridTemplateColumns: {
+            xs: 'repeat(2, minmax(0, 1fr))',
+            lg: 'repeat(4, minmax(0, 1fr))',
+          },
+        }}
+      >
+        {!statusReady ? (
+          [0, 1, 2, 3].map((key) => (
+            <Card key={key} sx={{ minWidth: 0, height: '100%' }}>
+              <CardContent sx={{ py: 2, '&:last-child': { pb: 2 } }}>
+                <Skeleton variant="rounded" height={40} />
+              </CardContent>
+            </Card>
+          ))
+        ) : (
+          <>
+            <StatusItem
+              label={t('overview.serviceCard')}
+              value={
+                status.serviceRunning ? t('overview.runningState') : t('overview.stoppedState')
               }
-              justifyContent="space-between"
-            >
-              <StatusItem
-                label={t('overview.serviceCard')}
-                value={
-                  status.serviceRunning ? t('overview.runningState') : t('overview.stoppedState')
-                }
-                active={status.serviceRunning}
-                pulse={status.serviceRunning}
-              />
-              <StatusItem
-                label={t('overview.winws')}
-                value={status.winwsRunning ? t('overview.runningState') : t('overview.stoppedState')}
-                active={status.winwsRunning}
-                pulse={status.winwsRunning}
-              />
-              <StatusItem
-                label={t('overview.windivert')}
-                value={
-                  status.windivertRunning
-                    ? t('overview.windivertActive')
-                    : t('overview.windivertInactive')
-                }
-                active={status.windivertRunning}
-                pulse={status.windivertRunning}
-              />
-              <StatusItem
-                label={t('overview.adminRights')}
-                value={status.isAdmin ? t('overview.adminGranted') : t('overview.adminMissing')}
-                active={Boolean(status.isAdmin)}
-              />
-            </Stack>
-          )}
-        </CardContent>
-      </Card>
+              active={status.serviceRunning}
+              pulse={status.serviceRunning}
+            />
+            <StatusItem
+              label={t('overview.winws')}
+              value={status.winwsRunning ? t('overview.runningState') : t('overview.stoppedState')}
+              active={status.winwsRunning}
+              pulse={status.winwsRunning}
+            />
+            <StatusItem
+              label={t('overview.windivert')}
+              value={
+                status.windivertRunning
+                  ? t('overview.windivertActive')
+                  : t('overview.windivertInactive')
+              }
+              active={status.windivertRunning}
+              pulse={status.windivertRunning}
+            />
+            <StatusItem
+              label={t('overview.adminRights')}
+              value={status.isAdmin ? t('overview.adminGranted') : t('overview.adminMissing')}
+              active={Boolean(status.isAdmin)}
+            />
+          </>
+        )}
+      </Box>
 
       {statusReady && !status.isAdmin && (
         <Alert
@@ -327,9 +319,19 @@ export function OverviewPage({
         </Alert>
       )}
 
-      <Card>
+      <Card
+        aria-disabled={assignLocked || undefined}
+        sx={{
+          opacity: assignLocked ? 0.5 : 1,
+          transition: (theme) => theme.transitions.create('opacity', { duration: 200 }),
+        }}
+      >
         <CardContent>
-          <Stack spacing={2}>
+          <Stack
+            spacing={2}
+            sx={{ pointerEvents: assignLocked ? 'none' : 'auto' }}
+            aria-hidden={assignLocked || undefined}
+          >
             <Box>
               <Typography variant="overline" color="text.secondary">
                 {t('overview.assignStrategy')}
@@ -338,11 +340,27 @@ export function OverviewPage({
                 {t('overview.assignStrategyHint')}
               </Typography>
             </Box>
-            <FormControl fullWidth disabled={serviceBusy}>
+            <FormControl fullWidth disabled={assignLocked || serviceBusy}>
               <InputLabel>{t('overview.version')}</InputLabel>
               <Select
                 label={t('overview.version')}
                 value={version}
+                renderValue={(selected) => {
+                  if (!selected) return '';
+                  return (
+                    <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 1 }}>
+                      {selected}
+                      {selected === latestTag && (
+                        <Chip
+                          size="small"
+                          color="primary"
+                          label={t('overview.latestVersion')}
+                          sx={{ pointerEvents: 'none' }}
+                        />
+                      )}
+                    </Box>
+                  );
+                }}
                 onChange={(event) => {
                   setVersion(String(event.target.value));
                   setStrategy('');
@@ -353,45 +371,43 @@ export function OverviewPage({
                 </MenuItem>
                 {versions.map((item, index) => (
                   <MenuItem key={item.tag} value={item.tag}>
-                    <Stack
-                      direction="row"
-                      spacing={1}
-                      alignItems="center"
-                      justifyContent="space-between"
-                      sx={{ width: '100%' }}
-                    >
-                      <Typography component="span" variant="body1">
-                        {item.tag}
-                      </Typography>
-                      {index === 0 && (
-                        <Chip size="small" color="primary" label={t('overview.latestVersion')} />
-                      )}
-                    </Stack>
+                    {item.tag}
+                    {index === 0 && (
+                      <Chip
+                        size="small"
+                        color="primary"
+                        label={t('overview.latestVersion')}
+                        sx={{ ml: 1, pointerEvents: 'none' }}
+                      />
+                    )}
                   </MenuItem>
                 ))}
               </Select>
             </FormControl>
-            <FormControl fullWidth disabled={!version || strategiesLoading || serviceBusy}>
-              <InputLabel>{t('overview.strategyLabel')}</InputLabel>
-              <Select
-                label={t('overview.strategyLabel')}
-                value={strategy}
-                onChange={(event) => setStrategy(String(event.target.value))}
-                endAdornment={
-                  strategiesLoading ? (
-                    <InputAdornment position="end" sx={{ mr: 2 }}>
-                      <CircularProgress size={18} />
-                    </InputAdornment>
-                  ) : undefined
-                }
-              >
-                {strategies.map((item) => (
-                  <MenuItem key={item.path} value={item.path}>
-                    {item.name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+            <Box>
+              <FormControl fullWidth disabled={assignLocked || !version || serviceBusy}>
+                <InputLabel>{t('overview.strategyLabel')}</InputLabel>
+                <Select
+                  label={t('overview.strategyLabel')}
+                  value={strategy}
+                  onChange={(event) => setStrategy(String(event.target.value))}
+                >
+                  {strategies.map((item) => (
+                    <MenuItem key={item.name} value={item.name}>
+                      {item.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              {strategiesLoading && (
+                <Stack direction="row" spacing={1} alignItems="center" mt={1}>
+                  <CircularProgress size={14} />
+                  <Typography variant="caption" color="text.secondary">
+                    {t('overview.loadingStrategies')}
+                  </Typography>
+                </Stack>
+              )}
+            </Box>
             <Button
               startIcon={
                 serviceBusy ? (
@@ -400,7 +416,7 @@ export function OverviewPage({
                   <PlayArrowOutlined />
                 )
               }
-              disabled={!picked || !status?.isAdmin || serviceBusy || strategiesLoading}
+              disabled={assignLocked || !picked || serviceBusy || strategiesLoading}
               onClick={() => setConfirm(true)}
               sx={{ alignSelf: 'flex-start' }}
             >
