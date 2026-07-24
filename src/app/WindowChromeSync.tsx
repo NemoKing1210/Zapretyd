@@ -1,11 +1,16 @@
 import { useColorScheme } from '@mui/material/styles';
 import { useEffect } from 'react';
-import { api } from '../shared/api/zapretyd';
+import { api, normalizeThemeMode } from '../shared/api/zapretyd';
 
-/** Keep the native window title bar in sync with the app color scheme. */
-export function WindowChromeSync() {
-  const { mode, systemMode } = useColorScheme();
-  const resolved = mode === 'system' ? systemMode : mode;
+/** Keep MUI color mode and the native window title bar in sync with saved settings. */
+export function WindowChromeSync({ theme }: { theme: string }) {
+  const { mode, systemMode, setMode } = useColorScheme();
+  const preferred = normalizeThemeMode(theme);
+  const resolved = preferred === 'system' ? systemMode : preferred;
+
+  useEffect(() => {
+    if (mode !== preferred) setMode(preferred);
+  }, [mode, preferred, setMode]);
 
   useEffect(() => {
     if (!resolved) return;

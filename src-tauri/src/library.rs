@@ -107,7 +107,7 @@ pub async fn install_release(
     fs::create_dir_all(base.join("versions")).map_err(|e| e.to_string())?;
     let temporary = base.join(format!(".{}.zip", release.tag));
     let response = reqwest::Client::builder()
-        .user_agent("Zapretyd/0.2")
+        .user_agent("Zapretyd/0.3")
         .build()
         .map_err(|e| e.to_string())?
         .get(&release.download_url)

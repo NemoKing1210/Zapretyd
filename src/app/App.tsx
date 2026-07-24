@@ -2,6 +2,7 @@ import { CssBaseline, ThemeProvider } from '@mui/material';
 import { useCallback, useEffect, useState } from 'react';
 import {
   api,
+  normalizeThemeMode,
   type AppSettings,
   type InstalledVersion,
   type ReleaseInfo,
@@ -120,9 +121,9 @@ export function App() {
       <SettingsPage settings={settings} onSave={saveSettings} />
     );
   return (
-    <ThemeProvider theme={theme} defaultMode="system">
+    <ThemeProvider theme={theme} defaultMode={normalizeThemeMode(settings.theme)}>
       <CssBaseline />
-      <WindowChromeSync />
+      <WindowChromeSync theme={settings.theme} />
       <AppShell page={page} onPage={setPage} status={status}>
         {error && page !== 'versions' && (
           <div role="alert" style={{ color: '#ba1a1a', marginBottom: 16 }}>

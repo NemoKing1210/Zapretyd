@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
-import { FolderOpenOutlined } from '@mui/icons-material';
+import { useEffect, useState, type ReactNode } from 'react';
+import { FolderOpenOutlined, GitHub, OpenInNewOutlined } from '@mui/icons-material';
 import { open } from '@tauri-apps/plugin-dialog';
+import { useColorScheme } from '@mui/material/styles';
 import {
-  Alert,
   Box,
   Button,
   Card,
@@ -10,18 +10,54 @@ import {
   FormControl,
   FormControlLabel,
   InputLabel,
+  Link,
   MenuItem,
   Select,
   Stack,
   Switch,
   Typography,
 } from '@mui/material';
-import { api, type AppSettings } from '../../../shared/api/zapretyd';
+import {
+  api,
+  normalizeThemeMode,
+  type AppSettings,
+  type ThemeMode,
+} from '../../../shared/api/zapretyd';
 import {
   normalizeLocalePreference,
   useTranslation,
   type LocalePreference,
 } from '../../../shared/i18n';
+
+const PROJECT_REPO_URL = 'https://github.com/NemoKing1210/Zapretyd';
+const AUTHOR_URL = 'https://github.com/NemoKing1210';
+const UPSTREAM_REPO_URL = 'https://github.com/Flowseal/zapret-discord-youtube';
+const UPSTREAM_REPO_LABEL = 'Flowseal/zapret-discord-youtube';
+const PROJECT_REPO_LABEL = 'NemoKing1210/Zapretyd';
+
+function SettingsSection({
+  title,
+  hint,
+  children,
+}: {
+  title: string;
+  hint: string;
+  children: ReactNode;
+}) {
+  return (
+    <Card>
+      <CardContent>
+        <Typography variant="overline" color="text.secondary">
+          {title}
+        </Typography>
+        <Typography color="text.secondary" variant="body2" sx={{ mt: 0.5, mb: 2 }}>
+          {hint}
+        </Typography>
+        {children}
+      </CardContent>
+    </Card>
+  );
+}
 
 export function SettingsPage({
   settings,
@@ -31,8 +67,11 @@ export function SettingsPage({
   onSave: (settings: AppSettings) => Promise<void>;
 }) {
   const { t, localePreference, setLocalePreference } = useTranslation();
+  const { setMode } = useColorScheme();
   const [defaultPath, setDefaultPath] = useState('');
+  const appVersion = import.meta.env.VITE_APP_VERSION as string;
   const useAppFolder = Boolean(defaultPath && settings.libraryPath === defaultPath);
+  const themeMode = normalizeThemeMode(settings.theme);
 
   useEffect(() => {
     void api.defaultLibraryPath().then(setDefaultPath);
@@ -57,6 +96,19 @@ export function SettingsPage({
     await onSave({ ...settings, locale: preference });
   };
 
+  const changeTheme = async (next: ThemeMode) => {
+    setMode(next);
+    await onSave({ ...settings, theme: next });
+  };
+
+  const openPath = (path: string) => {
+    void api.openDirectory(path);
+  };
+
+  const openExternal = (url: string) => {
+    void api.openUrl(url);
+  };
+
   return (
     <Stack spacing={3}>
       <Box>
@@ -65,66 +117,183 @@ export function SettingsPage({
           {t('settings.subtitle')}
         </Typography>
       </Box>
-      <Card>
-        <CardContent>
-          <Typography variant="h6">{t('settings.libraryTitle')}</Typography>
-          <Typography color="text.secondary" sx={{ mt: 1, wordBreak: 'break-all' }}>
-            {settings.libraryPath ?? t('settings.libraryNotSelected')}
-          </Typography>
-          <FormControlLabel
-            control={
-              <Switch
-                checked={useAppFolder}
-                disabled={!defaultPath}
-                onChange={(_, checked) => void toggleAppFolder(checked)}
-              />
-            }
-            label={t('settings.useAppFolder')}
-            sx={{ mt: 1, display: 'flex' }}
-          />
-          {!useAppFolder && (
-            <Button variant="text" startIcon={<FolderOpenOutlined />} onClick={choose}>
-              {t('settings.changeFolder')}
-            </Button>
-          )}
-        </CardContent>
-      </Card>
-      <Card>
-        <CardContent>
-          <FormControl fullWidth>
-            <InputLabel id="settings-language-label">{t('settings.language')}</InputLabel>
-            <Select
-              labelId="settings-language-label"
-              label={t('settings.language')}
-              value={normalizeLocalePreference(settings.locale ?? localePreference)}
-              onChange={(event) => void changeLocale(event.target.value as LocalePreference)}
+
+      <SettingsSection title={t('settings.appearanceTitle')} hint={t('settings.appearanceHint')}>
+        <Stack spacing={2.5}>
+          <Box>
+            <FormControl fullWidth>
+              <InputLabel id="settings-theme-label">{t('settings.theme')}</InputLabel>
+              <Select
+                labelId="settings-theme-label"
+                label={t('settings.theme')}
+                value={themeMode}
+                onChange={(event) => void changeTheme(event.target.value as ThemeMode)}
+              >
+                <MenuItem value="system">{t('settings.themeSystem')}</MenuItem>
+                <MenuItem value="light">{t('settings.themeLight')}</MenuItem>
+                <MenuItem value="dark">{t('settings.themeDark')}</MenuItem>
+              </Select>
+            </FormControl>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+              {t('settings.themeHint')}
+            </Typography>
+          </Box>
+          <Box>
+            <FormControl fullWidth>
+              <InputLabel id="settings-language-label">{t('settings.language')}</InputLabel>
+              <Select
+                labelId="settings-language-label"
+                label={t('settings.language')}
+                value={normalizeLocalePreference(settings.locale ?? localePreference)}
+                onChange={(event) => void changeLocale(event.target.value as LocalePreference)}
+              >
+                <MenuItem value="system">{t('settings.languageSystem')}</MenuItem>
+                <MenuItem value="en">{t('settings.languageEn')}</MenuItem>
+                <MenuItem value="ru">{t('settings.languageRu')}</MenuItem>
+              </Select>
+            </FormControl>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+              {t('settings.languageHint')}
+            </Typography>
+          </Box>
+        </Stack>
+      </SettingsSection>
+
+      <SettingsSection title={t('settings.libraryTitle')} hint={t('settings.libraryHint')}>
+        {settings.libraryPath ? (
+          <Link
+            component="button"
+            type="button"
+            variant="body1"
+            onClick={() => openPath(settings.libraryPath!)}
+            sx={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 0.75,
+              textAlign: 'left',
+              wordBreak: 'break-all',
+              cursor: 'pointer',
+            }}
+          >
+            {settings.libraryPath}
+            <OpenInNewOutlined sx={{ fontSize: 16, flexShrink: 0 }} />
+          </Link>
+        ) : (
+          <Typography color="text.secondary">{t('settings.libraryNotSelected')}</Typography>
+        )}
+        <FormControlLabel
+          control={
+            <Switch
+              checked={useAppFolder}
+              disabled={!defaultPath}
+              onChange={(_, checked) => void toggleAppFolder(checked)}
+            />
+          }
+          label={t('settings.useAppFolder')}
+          sx={{ mt: 1.5, display: 'flex' }}
+        />
+        {!useAppFolder && (
+          <Button variant="text" startIcon={<FolderOpenOutlined />} onClick={() => void choose()}>
+            {t('settings.changeFolder')}
+          </Button>
+        )}
+      </SettingsSection>
+
+      <SettingsSection title={t('settings.updatesTitle')} hint={t('settings.updatesHint')}>
+        <FormControlLabel
+          control={
+            <Switch
+              checked={settings.autoCheckUpdates}
+              onChange={(event) =>
+                void onSave({ ...settings, autoCheckUpdates: event.target.checked })
+              }
+            />
+          }
+          label={t('settings.autoCheckUpdates')}
+          sx={{ display: 'flex', alignItems: 'flex-start', mr: 0 }}
+        />
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, mb: 2 }}>
+          {t('settings.autoCheckHint')}
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          {t('settings.upstreamRepo')}
+        </Typography>
+        <Link
+          component="button"
+          type="button"
+          variant="body1"
+          onClick={() => openExternal(UPSTREAM_REPO_URL)}
+          sx={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 0.75,
+            mt: 0.5,
+            cursor: 'pointer',
+          }}
+        >
+          {UPSTREAM_REPO_LABEL}
+          <OpenInNewOutlined sx={{ fontSize: 16 }} />
+        </Link>
+      </SettingsSection>
+
+      <SettingsSection
+        title={t('settings.aboutTitle')}
+        hint={t('settings.aboutVersion', { version: appVersion })}
+      >
+        <Typography sx={{ mb: 2 }}>{t('settings.aboutBody')}</Typography>
+        <Stack spacing={1.5}>
+          <Box>
+            <Typography variant="body2" color="text.secondary">
+              {t('settings.aboutAuthor')}
+            </Typography>
+            <Link
+              component="button"
+              type="button"
+              variant="body1"
+              onClick={() => openExternal(AUTHOR_URL)}
+              sx={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 0.75,
+                mt: 0.25,
+                cursor: 'pointer',
+              }}
             >
-              <MenuItem value="system">{t('settings.languageSystem')}</MenuItem>
-              <MenuItem value="en">{t('settings.languageEn')}</MenuItem>
-              <MenuItem value="ru">{t('settings.languageRu')}</MenuItem>
-            </Select>
-          </FormControl>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardContent>
-          <FormControlLabel
-            control={
-              <Switch
-                checked={settings.autoCheckUpdates}
-                onChange={(event) =>
-                  onSave({ ...settings, autoCheckUpdates: event.target.checked })
-                }
-              />
-            }
-            label={t('settings.autoCheckUpdates')}
-          />
-          <Typography variant="body2" color="text.secondary">
-            {t('settings.autoCheckHint')}
-          </Typography>
-        </CardContent>
-      </Card>
-      <Alert severity="info">{t('settings.githubInfo')}</Alert>
+              {t('settings.aboutAuthorName')}
+              <OpenInNewOutlined sx={{ fontSize: 16 }} />
+            </Link>
+          </Box>
+          <Box>
+            <Typography variant="body2" color="text.secondary">
+              {t('settings.aboutProject')}
+            </Typography>
+            <Link
+              component="button"
+              type="button"
+              variant="body1"
+              onClick={() => openExternal(PROJECT_REPO_URL)}
+              sx={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 0.75,
+                mt: 0.25,
+                cursor: 'pointer',
+              }}
+            >
+              {PROJECT_REPO_LABEL}
+              <OpenInNewOutlined sx={{ fontSize: 16 }} />
+            </Link>
+          </Box>
+          <Button
+            variant="outlined"
+            startIcon={<GitHub />}
+            onClick={() => openExternal(PROJECT_REPO_URL)}
+            sx={{ alignSelf: 'flex-start', mt: 1 }}
+          >
+            {t('settings.openGitHub')}
+          </Button>
+        </Stack>
+      </SettingsSection>
     </Stack>
   );
 }

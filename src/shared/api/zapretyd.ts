@@ -1,4 +1,7 @@
 import { invoke } from '@tauri-apps/api/core';
+import { openUrl as openerOpenUrl } from '@tauri-apps/plugin-opener';
+
+export type ThemeMode = 'system' | 'light' | 'dark';
 
 export type AppSettings = {
   libraryPath?: string;
@@ -8,6 +11,10 @@ export type AppSettings = {
   theme: string;
   locale?: string;
 };
+
+export function normalizeThemeMode(theme: string | undefined): ThemeMode {
+  return theme === 'light' || theme === 'dark' || theme === 'system' ? theme : 'system';
+}
 export type ReleaseInfo = {
   tag: string;
   name: string;
@@ -48,6 +55,7 @@ export const api = {
   removeVersion: (tag: string) => invoke<void>('remove_version', { tag }),
   strategies: (tag: string) => invoke<StrategyInfo[]>('get_strategies', { tag }),
   openDirectory: (path: string) => invoke<void>('open_directory', { path }),
+  openUrl: (url: string) => openerOpenUrl(url),
   status: () => invoke<ServiceStatus>('get_service_status'),
   activate: (strategy: StrategyInfo) => invoke<void>('activate_strategy', { strategy }),
   stop: () => invoke<void>('stop_service'),
