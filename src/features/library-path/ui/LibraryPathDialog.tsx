@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { open } from '@tauri-apps/plugin-dialog';
 import {
   Alert,
+  Box,
   Button,
   Dialog,
   DialogActions,
@@ -13,6 +14,8 @@ import {
 } from '@mui/material';
 import { api, type AppSettings } from '../../../shared/api/zapretyd';
 import { useTranslation } from '../../../shared/i18n';
+import { reportCaughtError } from '../../../shared/lib/errorLog';
+import { ErrorAlert } from '../../../shared/ui/ErrorAlert';
 
 export function LibraryPathDialog({
   settings,
@@ -35,7 +38,11 @@ export function LibraryPathDialog({
         setDefaultPath(next);
         setPath(next);
       })
-      .catch((cause) => setError(translateError(String(cause))));
+      .catch((cause) => {
+        const raw = String(cause);
+        reportCaughtError(cause, { source: 'library-path', translate: translateError });
+        setError(raw);
+      });
   }, [translateError]);
 
   const choose = async () => {
@@ -58,7 +65,9 @@ export function LibraryPathDialog({
       await onSave(nextPath);
       setError('');
     } catch (cause) {
-      setError(translateError(String(cause)));
+      const raw = String(cause);
+      reportCaughtError(cause, { source: 'library-path', translate: translateError });
+      setError(raw);
     } finally {
       setBusy(false);
     }
@@ -100,9 +109,9 @@ export function LibraryPathDialog({
           </>
         )}
         {error && (
-          <Alert severity="error" sx={{ mt: 2 }}>
-            {error}
-          </Alert>
+          <Box sx={{ mt: 2 }}>
+            <ErrorAlert message={t('error.generic')} details={error} />
+          </Box>
         )}
       </DialogContent>
       <DialogActions>

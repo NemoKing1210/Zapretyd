@@ -11,8 +11,6 @@ pub struct AppSettings {
     pub locale: String,
     #[serde(default)]
     pub cached_latest_tag: Option<String>,
-    #[serde(default)]
-    pub cached_release_count: Option<u32>,
 }
 
 fn default_locale() -> String {
@@ -23,8 +21,9 @@ fn default_locale() -> String {
 #[serde(rename_all = "camelCase")]
 pub struct ReleaseCatalog {
     pub latest_tag: String,
-    pub release_count: u32,
     pub from_cache: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

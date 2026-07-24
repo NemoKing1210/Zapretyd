@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
-  Alert,
   Box,
   Chip,
   Stack,
@@ -14,6 +13,8 @@ import {
   type ReleaseInfo,
 } from '../../../shared/api/zapretyd';
 import { useTranslation } from '../../../shared/i18n';
+import { reportCaughtError } from '../../../shared/lib/errorLog';
+import { ErrorAlert } from '../../../shared/ui/ErrorAlert';
 import { PageTransition } from '../../../shared/ui/PageTransition';
 import { AllReleasesList } from './AllReleasesList';
 import { InstalledVersionsList } from './InstalledVersionsList';
@@ -24,11 +25,11 @@ type NetworkStatus = 'ok' | 'offline' | 'unreachable';
 export function VersionsPage({
   versions,
   latestTag,
-  releaseCount,
   libraryPath,
   shortenPaths,
   releasesOnline,
   networkStatus,
+  networkError,
   busy,
   error,
   installingTag,
@@ -39,15 +40,15 @@ export function VersionsPage({
 }: {
   versions: InstalledVersion[];
   latestTag?: string;
-  releaseCount?: number;
   libraryPath?: string;
   shortenPaths?: boolean;
   releasesOnline: boolean;
   networkStatus: NetworkStatus;
+  networkError?: string;
   busy: boolean;
   error?: string;
   installingTag?: string;
-  onInstall: (release: ReleaseInfo, force?: boolean) => void;
+  onInstall: (release: ReleaseInfo, force?: boolean) => void | Promise<void>;
   onRemove: (tag: string) => void;
   onOpen: (path: string) => void;
   onReleasesReachable: () => void;
@@ -60,6 +61,7 @@ export function VersionsPage({
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [listError, setListError] = useState('');
+  const [actionError, setActionError] = useState('');
   const [loadedOnce, setLoadedOnce] = useState(false);
 
   const loadPage = useCallback(
@@ -75,7 +77,9 @@ export function VersionsPage({
         setLoadedOnce(true);
         onReleasesReachable();
       } catch (cause) {
-        setListError(translateError(String(cause)));
+        const raw = String(cause);
+        reportCaughtError(cause, { source: 'releases.list', translate: translateError });
+        setListError(raw);
       } finally {
         setLoading(false);
         setLoadingMore(false);
@@ -84,13 +88,30 @@ export function VersionsPage({
     [onReleasesReachable, translateError],
   );
 
-  useEffect(() => {
-    if (view !== 'all' || loadedOnce || loading || !releasesOnline) return;
-    void loadPage(1, false);
-  }, [view, loadedOnce, loading, loadPage, releasesOnline]);
+  const reinstallTag = useCallback(
+    async (tag: string) => {
+      setActionError('');
+      try {
+        const cached = releases.find((release) => release.tag === tag);
+        const release = cached ?? (await api.getRelease(tag));
+        await onInstall(release, true);
+      } catch (cause) {
+        const raw = String(cause);
+        reportCaughtError(cause, {
+          source: 'releases.reinstall',
+          translate: translateError,
+        });
+        setActionError(raw);
+        throw cause;
+      }
+    },
+    [onInstall, releases, translateError],
+  );
 
-  const allCountLabel =
-    releaseCount !== undefined ? String(releaseCount) : loadedOnce ? String(releases.length) : '…';
+  useEffect(() => {
+    if (view !== 'all' || loadedOnce || loading || listError || !releasesOnline) return;
+    void loadPage(1, false);
+  }, [view, loadedOnce, loading, listError, loadPage, releasesOnline]);
 
   const networkAlert =
     networkStatus === 'offline'
@@ -98,6 +119,8 @@ export function VersionsPage({
       : networkStatus === 'unreachable'
         ? t('versions.githubUnavailable')
         : null;
+
+  const installedError = actionError || error;
 
   return (
     <Stack spacing={3}>
@@ -107,7 +130,17 @@ export function VersionsPage({
           {t('versions.subtitle')}
         </Typography>
       </Box>
-      {networkAlert && <Alert severity="warning">{networkAlert}</Alert>}
+      {networkAlert && (
+        <ErrorAlert
+          severity="warning"
+          message={networkAlert}
+          details={
+            networkError
+              ? `${networkError}\n\nnavigator.onLine: ${String(navigator.onLine)}\nnetworkStatus: ${networkStatus}`
+              : undefined
+          }
+        />
+      )}
       <ToggleButtonGroup
         exclusive
         color="primary"
@@ -127,10 +160,11 @@ export function VersionsPage({
         </ToggleButton>
         <ToggleButton value="all" sx={{ gap: 1, px: 2 }}>
           {t('versions.tabAll')}
-          <Chip size="small" label={allCountLabel} sx={{ height: 22, pointerEvents: 'none' }} />
         </ToggleButton>
       </ToggleButtonGroup>
-      {error && view === 'installed' && <Alert severity="error">{error}</Alert>}
+      {installedError && view === 'installed' && (
+        <ErrorAlert message={t('error.generic')} details={installedError} />
+      )}
       <PageTransition pageKey={view}>
         {view === 'installed' ? (
           <InstalledVersionsList
@@ -138,6 +172,9 @@ export function VersionsPage({
             latestTag={latestTag}
             libraryPath={libraryPath}
             shortenPaths={shortenPaths}
+            online={releasesOnline}
+            installingTag={busy ? installingTag : undefined}
+            onReinstall={reinstallTag}
             onRemove={onRemove}
             onOpen={onOpen}
             onBrowseAll={() => setView('all')}
@@ -150,12 +187,14 @@ export function VersionsPage({
             libraryPath={libraryPath}
             shortenPaths={shortenPaths}
             online={releasesOnline}
-            loading={releasesOnline && (loading || (!loadedOnce && !listError))}
+            loading={loading || (releasesOnline && !loadedOnce && !listError)}
             loadingMore={loadingMore}
             hasMore={hasMore}
-            error={listError || error}
+            error={listError ? t('versions.loadFailed') : error ? t('error.generic') : undefined}
+            errorDetails={listError || error || undefined}
             installingTag={busy ? installingTag : undefined}
             onLoadMore={() => void loadPage(page + 1, true)}
+            onRetry={() => void loadPage(1, false)}
             onInstall={onInstall}
             onRemove={onRemove}
             onOpen={onOpen}

@@ -10,7 +10,6 @@ export type AppSettings = {
   theme: string;
   locale?: string;
   cachedLatestTag?: string;
-  cachedReleaseCount?: number;
 };
 
 export function normalizeThemeMode(theme: string | undefined): ThemeMode {
@@ -18,8 +17,8 @@ export function normalizeThemeMode(theme: string | undefined): ThemeMode {
 }
 export type ReleaseCatalog = {
   latestTag: string;
-  releaseCount: number;
   fromCache: boolean;
+  error?: string;
 };
 export type ReleaseInfo = {
   tag: string;
@@ -66,6 +65,7 @@ export const api = {
   latest: () => invoke<ReleaseInfo>('check_latest_release'),
   refreshReleaseCatalog: () => invoke<ReleaseCatalog>('refresh_release_catalog'),
   listReleases: (page: number) => invoke<ReleasePage>('list_releases', { page }),
+  getRelease: (tag: string) => invoke<ReleaseInfo>('get_release', { tag }),
   versions: () => invoke<InstalledVersion[]>('list_installed_versions'),
   install: (release: ReleaseInfo, force = false) =>
     invoke<InstalledVersion>('install_release', { release, force }),

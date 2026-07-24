@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import {
   AdminPanelSettingsOutlined,
+  ArticleOutlined,
   ChevronLeft,
   ChevronRight,
   DashboardOutlined,
@@ -28,18 +29,29 @@ import {
 } from '@mui/material';
 import type { ServiceStatus } from '../../../shared/api/zapretyd';
 import { useTranslation } from '../../../shared/i18n';
+import { useErrorLog } from '../../../shared/lib/errorLog';
 
 const DRAWER_WIDTH = 240;
 const DRAWER_WIDTH_COLLAPSED = 72;
 const SIDEBAR_COLLAPSED_KEY = 'zapretyd.sidebarCollapsed';
 
-const navigation = [
+const baseNavigation = [
   { key: 'overview', labelKey: 'nav.overview' as const, icon: <DashboardOutlined /> },
   { key: 'versions', labelKey: 'nav.versions' as const, icon: <FolderOpenOutlined /> },
   { key: 'settings', labelKey: 'nav.settings' as const, icon: <SettingsOutlined /> },
-];
+] as const;
 
-export type PageKey = (typeof navigation)[number]['key'];
+const logsNavItem = {
+  key: 'logs',
+  labelKey: 'nav.logs' as const,
+  icon: <ArticleOutlined />,
+} as const;
+
+const navigation = import.meta.env.DEV
+  ? [...baseNavigation, logsNavItem]
+  : [...baseNavigation];
+
+export type PageKey = (typeof baseNavigation)[number]['key'] | 'logs';
 
 function readCollapsed(): boolean {
   try {
@@ -66,9 +78,11 @@ export function AppShell({
 }) {
   const { t } = useTranslation();
   const [collapsed, setCollapsed] = useState(readCollapsed);
+  const errorLog = useErrorLog();
   const running = Boolean(status?.serviceRunning && status.winwsRunning);
   const appVersion = import.meta.env.VITE_APP_VERSION as string;
   const drawerWidth = collapsed ? DRAWER_WIDTH_COLLAPSED : DRAWER_WIDTH;
+  const errorCount = import.meta.env.DEV ? errorLog.length : 0;
 
   const toggleCollapsed = () => {
     setCollapsed((prev) => {
@@ -225,6 +239,13 @@ export function AppShell({
             {navigation.map((item) => {
               const label = t(item.labelKey);
               const showVersionsBadge = item.key === 'versions' && installedCount > 0;
+              const showLogsBadge = item.key === 'logs' && errorCount > 0;
+              const badgeCount = showVersionsBadge
+                ? installedCount
+                : showLogsBadge
+                  ? errorCount
+                  : 0;
+              const badgeColor = showLogsBadge ? 'error' : 'primary';
               const button = (
                 <ListItemButton
                   key={item.key}
@@ -246,8 +267,8 @@ export function AppShell({
                       color: 'inherit',
                     }}
                   >
-                    {collapsed && showVersionsBadge ? (
-                      <Badge badgeContent={installedCount} color="primary" max={99}>
+                    {collapsed && badgeCount > 0 ? (
+                      <Badge badgeContent={badgeCount} color={badgeColor} max={99}>
                         {item.icon}
                       </Badge>
                     ) : (
@@ -257,14 +278,15 @@ export function AppShell({
                   {!collapsed && (
                     <ListItemText
                       primary={
-                        showVersionsBadge ? (
+                        badgeCount > 0 ? (
                           <Stack direction="row" alignItems="center" spacing={1} component="span">
                             <Box component="span" sx={{ minWidth: 0 }}>
                               {label}
                             </Box>
                             <Chip
                               size="small"
-                              label={installedCount}
+                              color={showLogsBadge ? 'error' : 'default'}
+                              label={badgeCount}
                               sx={{ height: 22, pointerEvents: 'none' }}
                             />
                           </Stack>

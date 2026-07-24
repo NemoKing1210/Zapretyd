@@ -41,6 +41,15 @@ describe('i18n', () => {
     expect(translateError('error.library.notConfigured')).toBe('Не настроена библиотека');
   });
 
+  it('keeps technical detail for debug translation', () => {
+    setLocale('en');
+    expect(
+      translateError(
+        'error.release.rateLimited|HTTP status client error (403 rate limit exceeded)',
+      ),
+    ).toContain('HTTP status client error');
+  });
+
   it('interpolates params', () => {
     setLocale('en');
     expect(t('overview.strategy', { name: 'general.bat' })).toBe('Strategy: general.bat');

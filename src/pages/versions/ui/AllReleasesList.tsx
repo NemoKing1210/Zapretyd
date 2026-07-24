@@ -23,6 +23,7 @@ import {
 import type { InstalledVersion, ReleaseInfo } from '../../../shared/api/zapretyd';
 import { useTranslation } from '../../../shared/i18n';
 import { formatBytes, formatDate, formatVersionPath } from '../../../shared/lib/format';
+import { ErrorAlert } from '../../../shared/ui/ErrorAlert';
 import { ReleaseNotesBody } from './ReleaseNotesBody';
 
 type ConfirmAction =
@@ -40,8 +41,10 @@ export function AllReleasesList({
   loadingMore,
   hasMore,
   error,
+  errorDetails,
   installingTag,
   onLoadMore,
+  onRetry,
   onInstall,
   onRemove,
   onOpen,
@@ -56,8 +59,10 @@ export function AllReleasesList({
   loadingMore: boolean;
   hasMore: boolean;
   error?: string;
+  errorDetails?: string;
   installingTag?: string;
   onLoadMore: () => void;
+  onRetry?: () => void;
   onInstall: (release: ReleaseInfo, force?: boolean) => void | Promise<void>;
   onRemove: (tag: string) => void | Promise<void>;
   onOpen: (path: string) => void;
@@ -79,7 +84,7 @@ export function AllReleasesList({
     setConfirmOpen(false);
   };
 
-  if (loading) {
+  if (loading && !error) {
     return (
       <Stack spacing={2}>
         {Array.from({ length: 4 }, (_, index) => (
@@ -128,8 +133,20 @@ export function AllReleasesList({
 
   return (
     <Stack spacing={2}>
-      {error && <Alert severity="error">{error}</Alert>}
-      {!error && releases.length === 0 && (
+      {error && (
+        <ErrorAlert
+          message={error}
+          details={errorDetails}
+          action={
+            onRetry && online ? (
+              <Button color="inherit" size="small" onClick={onRetry} disabled={busy || loading}>
+                {t('versions.retry')}
+              </Button>
+            ) : undefined
+          }
+        />
+      )}
+      {!error && !loading && releases.length === 0 && (
         <Alert severity="info">{t('versions.noReleases')}</Alert>
       )}
       {releases.map((release) => {

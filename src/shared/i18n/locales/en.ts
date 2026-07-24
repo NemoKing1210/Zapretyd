@@ -2,6 +2,7 @@ export const en = {
   'nav.overview': 'Overview',
   'nav.versions': 'Versions',
   'nav.settings': 'Settings',
+  'nav.logs': 'Logs',
   'app.subtitle': 'zapret manager',
   'shell.serviceRunning': 'Service running',
   'shell.serviceStopped': 'Service stopped',
@@ -13,6 +14,18 @@ export const en = {
   'shell.appVersion': 'v{{version}}',
   'shell.collapseSidebar': 'Collapse sidebar',
   'shell.expandSidebar': 'Expand sidebar',
+
+  'toast.versionDownloaded': 'Downloaded {{tag}}',
+  'toast.versionReinstalled': 'Reinstalled {{tag}}',
+  'toast.versionRemoved': 'Removed {{tag}}',
+  'toast.settingsSaved': 'Settings saved',
+  'toast.libraryConfigured': 'Library folder saved',
+  'toast.serviceActivated': 'Service started with the selected strategy',
+  'toast.serviceStopped': 'Service stopped',
+  'toast.serviceRemoved': 'Service removed',
+
+  'error.generic': 'Something went wrong. Please try again.',
+  'error.details': 'Error details',
 
   'overview.title': 'Bypass status',
   'overview.subtitle': 'See status and manage the zapret service from one place.',
@@ -59,7 +72,9 @@ export const en = {
   'versions.offline':
     'No internet connection. You cannot download, reinstall, or load more releases until you are back online.',
   'versions.githubUnavailable':
-    'Could not reach the GitHub releases API. Download, reinstall, and loading more releases are unavailable until the connection is restored.',
+    'Could not refresh release information from GitHub. Cached data is shown when available.',
+  'versions.loadFailed': 'Could not load the release list. Please try again.',
+  'versions.retry': 'Retry',
   'versions.published': 'Published {{date}} · {{size}}',
   'versions.download': 'Download',
   'versions.reinstall': 'Reinstall',
@@ -117,6 +132,12 @@ export const en = {
   'settings.aboutProject': 'Project repository',
   'settings.openGitHub': 'Open on GitHub',
 
+  'logs.title': 'Logs',
+  'logs.subtitle': 'Caught errors and unhandled exceptions while running in development mode.',
+  'logs.empty': 'No errors captured yet.',
+  'logs.clear': 'Clear',
+  'logs.count': '{{count}} entries',
+
   'libraryDialog.title': 'Where should zapret versions be stored?',
   'libraryDialog.body':
     'You can keep versions in the app folder, or choose your own path without Cyrillic or special characters (for example {{path}}).',
@@ -136,6 +157,7 @@ export const en = {
 
   'error.release.fetchFailed': 'Failed to fetch release',
   'error.release.noZipAsset': 'Latest release has no Windows ZIP asset',
+  'error.release.rateLimited': 'GitHub API rate limit exceeded',
 
   'error.service.adminRequired': 'Restart Zapretyd as administrator to manage the service',
   'error.service.versionLibraryNotFound': 'Version library not found',

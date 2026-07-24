@@ -28,6 +28,7 @@ pub fn run() {
             releases::check_latest_release,
             releases::refresh_release_catalog,
             releases::list_releases,
+            releases::get_release,
             library::get_default_library_path,
             library::list_installed_versions,
             library::install_release,

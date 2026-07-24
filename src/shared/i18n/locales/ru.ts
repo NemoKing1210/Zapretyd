@@ -4,6 +4,7 @@ export const ru: Record<TranslationKey, string> = {
   'nav.overview': 'Обзор',
   'nav.versions': 'Версии',
   'nav.settings': 'Настройки',
+  'nav.logs': 'Логи',
   'app.subtitle': 'менеджер zapret',
   'shell.serviceRunning': 'Служба работает',
   'shell.serviceStopped': 'Служба остановлена',
@@ -15,6 +16,18 @@ export const ru: Record<TranslationKey, string> = {
   'shell.appVersion': 'v{{version}}',
   'shell.collapseSidebar': 'Свернуть панель',
   'shell.expandSidebar': 'Развернуть панель',
+
+  'toast.versionDownloaded': 'Скачано: {{tag}}',
+  'toast.versionReinstalled': 'Переустановлено: {{tag}}',
+  'toast.versionRemoved': 'Удалено: {{tag}}',
+  'toast.settingsSaved': 'Настройки сохранены',
+  'toast.libraryConfigured': 'Папка библиотеки сохранена',
+  'toast.serviceActivated': 'Служба запущена с выбранной стратегией',
+  'toast.serviceStopped': 'Служба остановлена',
+  'toast.serviceRemoved': 'Служба удалена',
+
+  'error.generic': 'Что-то пошло не так. Попробуйте ещё раз.',
+  'error.details': 'Подробности ошибки',
 
   'overview.title': 'Состояние обхода',
   'overview.subtitle': 'Смотрите статус и управляйте службой zapret на одном экране.',
@@ -61,7 +74,9 @@ export const ru: Record<TranslationKey, string> = {
   'versions.offline':
     'Нет доступа к интернету. Без сети нельзя скачать, переустановить или подгрузить релизы.',
   'versions.githubUnavailable':
-    'Не удалось связаться с GitHub. Скачивание, переустановка и подгрузка релизов временно недоступны.',
+    'Не удалось обновить сведения о релизах с GitHub. Показаны кэшированные данные, если они есть.',
+  'versions.loadFailed': 'Не удалось загрузить список релизов. Попробуйте ещё раз.',
+  'versions.retry': 'Повторить',
   'versions.published': 'Опубликован {{date}} · {{size}}',
   'versions.download': 'Скачать',
   'versions.reinstall': 'Переустановить',
@@ -119,6 +134,12 @@ export const ru: Record<TranslationKey, string> = {
   'settings.aboutProject': 'Репозиторий проекта',
   'settings.openGitHub': 'Открыть на GitHub',
 
+  'logs.title': 'Логи',
+  'logs.subtitle': 'Перехваченные ошибки и необработанные исключения в режиме разработки.',
+  'logs.empty': 'Ошибок пока нет.',
+  'logs.clear': 'Очистить',
+  'logs.count': '{{count}} записей',
+
   'libraryDialog.title': 'Где хранить версии zapret?',
   'libraryDialog.body':
     'Можно хранить версии в папке приложения или выбрать свой путь без кириллицы и специальных символов (например {{path}}).',
@@ -138,6 +159,7 @@ export const ru: Record<TranslationKey, string> = {
 
   'error.release.fetchFailed': 'Не удалось получить релиз',
   'error.release.noZipAsset': 'В последнем релизе нет ZIP-архива для Windows',
+  'error.release.rateLimited': 'Превышен лимит запросов к GitHub API',
 
   'error.service.adminRequired':
     'Перезапустите Zapretyd от имени администратора для управления службой',
