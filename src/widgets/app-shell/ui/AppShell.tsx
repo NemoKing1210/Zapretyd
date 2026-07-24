@@ -32,35 +32,6 @@ const navigation = [
 
 export type PageKey = (typeof navigation)[number]['key'];
 
-function BrandMark() {
-  return (
-    <Box
-      aria-hidden
-      sx={{
-        width: 36,
-        height: 36,
-        borderRadius: 2,
-        bgcolor: 'primary.main',
-        color: 'primary.contrastText',
-        display: 'grid',
-        placeItems: 'center',
-        flexShrink: 0,
-      }}
-    >
-      <Box
-        component="svg"
-        viewBox="0 0 24 24"
-        sx={{ width: 20, height: 20, fill: 'currentColor' }}
-      >
-        <rect x="4" y="5" width="16" height="2.5" rx="1" />
-        <rect x="4" y="10.5" width="16" height="2.5" rx="1" />
-        <rect x="4" y="16" width="10" height="2.5" rx="1" />
-        <circle cx="18" cy="17.25" r="3" fill="#74D7CA" />
-      </Box>
-    </Box>
-  );
-}
-
 export function AppShell({
   page,
   onPage,
@@ -139,16 +110,13 @@ export function AppShell({
           },
         }}
       >
-        <Box sx={{ px: 2, py: 2.5, display: 'flex', alignItems: 'center', gap: 1.5 }}>
-          <BrandMark />
-          <Box sx={{ minWidth: 0 }}>
-            <Typography variant="subtitle1" fontWeight={800} letterSpacing="-.04em" lineHeight={1.2}>
-              Zapretyd
-            </Typography>
-            <Typography variant="caption" color="text.secondary" noWrap>
-              {t('app.subtitle')}
-            </Typography>
-          </Box>
+        <Box sx={{ px: 2.5, py: 2.5 }}>
+          <Typography variant="subtitle1" fontWeight={800} letterSpacing="-.04em" lineHeight={1.2}>
+            Zapretyd
+          </Typography>
+          <Typography variant="caption" color="text.secondary" noWrap>
+            {t('app.subtitle')}
+          </Typography>
         </Box>
 
         <List sx={{ flex: 1, px: 0.5 }}>

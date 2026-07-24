@@ -3,6 +3,7 @@ mod library;
 mod releases;
 mod service;
 mod types;
+mod window_chrome;
 
 use app::AppState;
 use tauri::Manager;
@@ -14,6 +15,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             app.manage(AppState::load(app.path().app_config_dir()?)?);
+            window_chrome::init_window_chrome(app.handle());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -22,6 +24,7 @@ pub fn run() {
             app::get_system_locale,
             app::is_administrator,
             app::relaunch_as_admin,
+            window_chrome::sync_window_chrome,
             releases::check_latest_release,
             library::get_default_library_path,
             library::list_installed_versions,

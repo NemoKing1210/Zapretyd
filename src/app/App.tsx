@@ -9,6 +9,7 @@ import {
 } from '../shared/api/zapretyd';
 import { useTranslation } from '../shared/i18n';
 import { theme } from './theme';
+import { WindowChromeSync } from './WindowChromeSync';
 import { AppShell, type PageKey } from '../widgets/app-shell/ui/AppShell';
 import { LibraryPathDialog } from '../features/library-path/ui/LibraryPathDialog';
 import { OverviewPage } from '../pages/overview/ui/OverviewPage';
@@ -121,6 +122,7 @@ export function App() {
   return (
     <ThemeProvider theme={theme} defaultMode="system">
       <CssBaseline />
+      <WindowChromeSync />
       <AppShell page={page} onPage={setPage} status={status}>
         {error && page !== 'versions' && (
           <div role="alert" style={{ color: '#ba1a1a', marginBottom: 16 }}>

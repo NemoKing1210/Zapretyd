@@ -52,4 +52,5 @@ export const api = {
   activate: (strategy: StrategyInfo) => invoke<void>('activate_strategy', { strategy }),
   stop: () => invoke<void>('stop_service'),
   removeService: () => invoke<void>('remove_service'),
+  syncWindowChrome: (dark: boolean) => invoke<void>('sync_window_chrome', { dark }),
 };
