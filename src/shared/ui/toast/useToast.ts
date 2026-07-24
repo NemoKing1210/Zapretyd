@@ -2,7 +2,7 @@ import { createContext, useContext } from 'react';
 import type { ShowToastOptions } from './types';
 
 export type ToastContextValue = {
-  showToast: (options: ShowToastOptions | string) => void;
+  showToast: (options: ShowToastOptions) => void;
 };
 
 export const ToastContext = createContext<ToastContextValue | null>(null);

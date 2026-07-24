@@ -6,7 +6,8 @@ export type ToastAction = {
 };
 
 export type ShowToastOptions = {
-  message: string;
+  title: string;
+  description: string;
   severity?: ToastSeverity;
   duration?: number;
   action?: ToastAction;

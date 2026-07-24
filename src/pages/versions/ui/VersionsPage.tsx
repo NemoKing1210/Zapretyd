@@ -124,12 +124,7 @@ export function VersionsPage({
     void loadPage(1, false);
   }, [view, loadedOnce, loading, listError, loadPage, releasesOnline]);
 
-  const networkAlert =
-    networkStatus === 'offline'
-      ? t('versions.offline')
-      : networkStatus === 'unreachable'
-        ? t('versions.githubUnavailable')
-        : null;
+  const networkAlert = networkStatus === 'offline' ? t('versions.offline') : null;
 
   const installedError = actionError || error;
 

@@ -17,6 +17,7 @@ import {
 import { PageTransition } from '../shared/ui/PageTransition';
 import { ErrorAlert } from '../shared/ui/ErrorAlert';
 import { ToastProvider, useToast } from '../shared/ui/toast';
+import type { ShowToastOptions } from '../shared/ui/toast';
 import { theme } from './theme';
 import { WindowChromeSync } from './WindowChromeSync';
 import { AppShell, type PageKey } from '../widgets/app-shell/ui/AppShell';
@@ -44,24 +45,36 @@ function AppBody() {
   const [catalogLoading, setCatalogLoading] = useState(true);
   const [defaultLibraryPath, setDefaultLibraryPath] = useState<string>();
   const settingsRef = useRef(settings);
+  const translateErrorRef = useRef(translateError);
+  const tRef = useRef(t);
+  const showToastRef = useRef(showToast);
   useEffect(() => {
     settingsRef.current = settings;
   }, [settings]);
+  useEffect(() => {
+    translateErrorRef.current = translateError;
+    tRef.current = t;
+    showToastRef.current = showToast;
+  }, [translateError, t, showToast]);
 
   const openAllVersions = useCallback(() => {
     setVersionsTab('all');
     setPage('versions');
   }, []);
 
-  const showError = useCallback(
-    (cause: unknown) => {
-      const raw = String(cause);
-      reportCaughtError(cause, { source: 'app', translate: translateError });
-      setError(raw);
-      showToast({ message: t('error.generic'), severity: 'error' });
-    },
-    [showToast, t, translateError],
-  );
+  const showError = useCallback((cause: unknown) => {
+    const raw = String(cause);
+    reportCaughtError(cause, {
+      source: 'app',
+      translate: translateErrorRef.current,
+    });
+    setError(raw);
+    showToastRef.current({
+      title: tRef.current('toast.error.title'),
+      description: tRef.current('toast.error.body'),
+      severity: 'error',
+    });
+  }, []);
   const refresh = useCallback(async () => {
     try {
       const [nextVersions, nextStatus] = await Promise.all([api.versions(), api.status()]);
@@ -82,19 +95,22 @@ function AppBody() {
         if (catalog.error) {
           reportCaughtError(catalog.error, {
             source: 'releases.catalog',
-            translate: translateError,
+            translate: translateErrorRef.current,
           });
         }
       } else {
         setReleasesNetwork('ok');
         setReleasesNetworkError(undefined);
         if (!previousTag || previousTag !== catalog.latestTag) {
-          showToast({
-            message: t('toast.newVersionAvailable', { tag: catalog.latestTag }),
+          showToastRef.current({
+            title: tRef.current('toast.newVersionAvailable.title'),
+            description: tRef.current('toast.newVersionAvailable.body', {
+              tag: catalog.latestTag,
+            }),
             severity: 'info',
             duration: 12000,
             action: {
-              label: t('toast.install'),
+              label: tRef.current('toast.install'),
               onClick: openAllVersions,
             },
           });
@@ -111,23 +127,35 @@ function AppBody() {
     } catch (cause) {
       setReleasesNetwork(navigator.onLine ? 'unreachable' : 'offline');
       setReleasesNetworkError(String(cause));
-      reportCaughtError(cause, { source: 'releases.catalog', translate: translateError });
+      reportCaughtError(cause, {
+        source: 'releases.catalog',
+        translate: translateErrorRef.current,
+      });
     } finally {
       setCatalogLoading(false);
     }
-  }, [openAllVersions, showToast, t, translateError]);
+  }, [openAllVersions]);
   useEffect(() => installGlobalErrorHandlers(), []);
   useEffect(() => {
+    let cancelled = false;
     api.defaultLibraryPath().then(setDefaultLibraryPath).catch(() => undefined);
     api.settings()
       .then(async (initial) => {
+        if (cancelled) return;
         setSettings(initial);
         setMode(normalizeThemeMode(initial.theme));
         await refreshCatalog();
       })
-      .catch(showError);
-    refresh();
-  }, [refresh, refreshCatalog, setMode, showError]);
+      .catch((cause) => {
+        if (!cancelled) showError(cause);
+      });
+    void refresh();
+    return () => {
+      cancelled = true;
+    };
+    // Mount-only bootstrap. Catalog refresh must not re-run when locale/theme settings change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only bootstrap
+  }, []);
   useEffect(() => {
     if (!settings) return;
     setMode(normalizeThemeMode(settings.theme));
@@ -146,7 +174,7 @@ function AppBody() {
   }, [refreshCatalog]);
   useEffect(() => {
     if (!settings?.libraryPath) return;
-    refresh();
+    void refresh();
     // Re-run only when the library path changes, not on every settings/callback identity change.
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional libraryPath-only deps
   }, [settings?.libraryPath]);
@@ -155,12 +183,20 @@ function AppBody() {
   }, [page]);
   const saveSettings = async (
     next: AppSettings,
-    toastKey: 'toast.settingsSaved' | 'toast.libraryConfigured' = 'toast.settingsSaved',
+    toastKey:
+      | 'settingsSaved'
+      | 'libraryConfigured'
+      | 'libraryPathChanged'
+      | 'themeChanged'
+      | 'languageChanged' = 'settingsSaved',
   ) => {
     await api.saveSettings(next);
     setSettings(next);
     await refresh();
-    showToast(t(toastKey));
+    showToast({
+      title: t(`toast.${toastKey}.title`),
+      description: t(`toast.${toastKey}.body`),
+    });
   };
   const install = async (release: ReleaseInfo, force = false) => {
     setBusy(true);
@@ -169,9 +205,11 @@ function AppBody() {
     try {
       await api.install(release, force);
       await refresh();
-      showToast(
-        t(force ? 'toast.versionReinstalled' : 'toast.versionDownloaded', { tag: release.tag }),
-      );
+      const key = force ? 'versionReinstalled' : 'versionDownloaded';
+      showToast({
+        title: t(`toast.${key}.title`),
+        description: t(`toast.${key}.body`, { tag: release.tag }),
+      });
     } catch (cause) {
       showError(cause);
     } finally {
@@ -179,20 +217,26 @@ function AppBody() {
       setInstallingTag(undefined);
     }
   };
-  const runAction = async (action: () => Promise<unknown>, successMessage?: string) => {
+  const runAction = async (
+    action: () => Promise<unknown>,
+    successToast?: Pick<ShowToastOptions, 'title' | 'description'>,
+  ) => {
     try {
       setError('');
       await action();
       await refresh();
-      if (successMessage) showToast(successMessage);
+      if (successToast) showToast(successToast);
     } catch (cause) {
       showError(cause);
     }
   };
-  const serviceAction = async (action: () => Promise<unknown>, successMessage?: string) => {
+  const serviceAction = async (
+    action: () => Promise<unknown>,
+    successToast?: Pick<ShowToastOptions, 'title' | 'description'>,
+  ) => {
     setServiceBusy(true);
     try {
-      await runAction(action, successMessage);
+      await runAction(action, successToast);
     } finally {
       setServiceBusy(false);
     }
@@ -218,10 +262,23 @@ function AppBody() {
         serviceBusy={serviceBusy}
         loadStrategies={api.strategies}
         onActivate={(strategy) =>
-          serviceAction(() => api.activate(strategy), t('toast.serviceActivated'))
+          serviceAction(() => api.activate(strategy), {
+            title: t('toast.serviceActivated.title'),
+            description: t('toast.serviceActivated.body'),
+          })
         }
-        onStop={() => serviceAction(api.stop, t('toast.serviceStopped'))}
-        onRemove={() => serviceAction(api.removeService, t('toast.serviceRemoved'))}
+        onStop={() =>
+          serviceAction(api.stop, {
+            title: t('toast.serviceStopped.title'),
+            description: t('toast.serviceStopped.body'),
+          })
+        }
+        onRemove={() =>
+          serviceAction(api.removeService, {
+            title: t('toast.serviceRemoved.title'),
+            description: t('toast.serviceRemoved.body'),
+          })
+        }
         onAdmin={() => serviceAction(api.relaunchAsAdmin)}
         onStrategiesError={showError}
       />
@@ -241,7 +298,10 @@ function AppBody() {
         onViewChange={setVersionsTab}
         onInstall={install}
         onRemove={(tag) =>
-          runAction(() => api.removeVersion(tag), t('toast.versionRemoved', { tag }))
+          runAction(() => api.removeVersion(tag), {
+            title: t('toast.versionRemoved.title'),
+            description: t('toast.versionRemoved.body', { tag }),
+          })
         }
         onOpen={(path) => runAction(() => api.openDirectory(path))}
         onReleasesReachable={markReleasesReachable}
@@ -253,11 +313,28 @@ function AppBody() {
           const next = { ...settings, cachedLatestTag: undefined };
           await api.saveSettings(next);
           setSettings(next);
-          showToast(t('logs.cachedLatestTagCleared'));
+          showToast({
+            title: t('toast.debug.title'),
+            description: t('toast.debug.cachedLatestTagCleared.body'),
+          });
         }}
       />
     ) : (
-      <SettingsPage settings={settings} onSave={(next) => saveSettings(next)} />
+      <SettingsPage
+        settings={settings}
+        onSave={(next, reason) =>
+          saveSettings(
+            next,
+            reason === 'theme'
+              ? 'themeChanged'
+              : reason === 'locale'
+                ? 'languageChanged'
+                : reason === 'library'
+                  ? 'libraryPathChanged'
+                  : 'settingsSaved',
+          )
+        }
+      />
     );
   return (
     <>
@@ -284,7 +361,7 @@ function AppBody() {
       <LibraryPathDialog
         settings={settings}
         onSave={async (libraryPath) =>
-          saveSettings({ ...settings, libraryPath }, 'toast.libraryConfigured')
+          saveSettings({ ...settings, libraryPath }, 'libraryConfigured')
         }
       />
     </>

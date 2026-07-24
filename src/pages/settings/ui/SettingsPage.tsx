@@ -94,7 +94,10 @@ export function SettingsPage({
   onSave,
 }: {
   settings: AppSettings;
-  onSave: (settings: AppSettings) => Promise<void>;
+  onSave: (
+    settings: AppSettings,
+    reason?: 'theme' | 'locale' | 'library',
+  ) => Promise<void>;
 }) {
   const { t, localePreference, setLocalePreference } = useTranslation();
   const { setMode } = useColorScheme();
@@ -109,13 +112,13 @@ export function SettingsPage({
 
   const choose = async () => {
     const path = await open({ directory: true, multiple: false });
-    if (typeof path === 'string') onSave({ ...settings, libraryPath: path });
+    if (typeof path === 'string') await onSave({ ...settings, libraryPath: path }, 'library');
   };
 
   const toggleAppFolder = async (checked: boolean) => {
     if (checked) {
       const libraryPath = defaultPath || (await api.defaultLibraryPath());
-      await onSave({ ...settings, libraryPath });
+      await onSave({ ...settings, libraryPath }, 'library');
       return;
     }
     await choose();
@@ -123,12 +126,12 @@ export function SettingsPage({
 
   const changeLocale = async (preference: LocalePreference) => {
     setLocalePreference(preference);
-    await onSave({ ...settings, locale: preference });
+    await onSave({ ...settings, locale: preference }, 'locale');
   };
 
   const changeTheme = async (next: ThemeMode) => {
     setMode(next);
-    await onSave({ ...settings, theme: next });
+    await onSave({ ...settings, theme: next }, 'theme');
   };
 
   const openPath = (path: string) => {

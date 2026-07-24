@@ -1,12 +1,13 @@
 import { Close } from '@mui/icons-material';
-import { Alert, Button, IconButton, Snackbar, Stack } from '@mui/material';
+import { Alert, AlertTitle, Button, IconButton, Snackbar, Stack } from '@mui/material';
 import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import type { ShowToastOptions, ToastAction, ToastSeverity } from './types';
 import { ToastContext } from './useToast';
 
 type ToastItem = {
   id: number;
-  message: string;
+  title: string;
+  description: string;
   severity: ToastSeverity;
   duration: number;
   action?: ToastAction;
@@ -18,14 +19,14 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const [queue, setQueue] = useState<ToastItem[]>([]);
   const current = queue[0];
 
-  const showToast = useCallback((options: ShowToastOptions | string) => {
-    const parsed = typeof options === 'string' ? { message: options } : options;
+  const showToast = useCallback((options: ShowToastOptions) => {
     const item: ToastItem = {
       id: ++toastSeq,
-      message: parsed.message,
-      severity: parsed.severity ?? 'success',
-      duration: parsed.duration ?? 4000,
-      action: parsed.action,
+      title: options.title,
+      description: options.description,
+      severity: options.severity ?? 'success',
+      duration: options.duration ?? 5000,
+      action: options.action,
     };
     setQueue((prev) => [...prev, item]);
   }, []);
@@ -42,18 +43,19 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       <Snackbar
         key={current?.id ?? 'empty'}
         open={Boolean(current)}
-        autoHideDuration={current?.duration ?? 4000}
+        autoHideDuration={current?.duration ?? 5000}
         onClose={(_, reason) => {
           if (reason === 'clickaway') return;
           dismiss();
         }}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+        sx={{ top: { xs: 72, sm: 80 } }}
       >
         <Alert
           severity={current?.severity ?? 'success'}
           variant="filled"
           elevation={3}
-          sx={{ width: '100%', minWidth: 280, maxWidth: 520 }}
+          sx={{ width: '100%', minWidth: 300, maxWidth: 520 }}
           action={
             <Stack direction="row" spacing={0.5} alignItems="center">
               {current?.action && (
@@ -68,18 +70,14 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                   {current.action.label}
                 </Button>
               )}
-              <IconButton
-                size="small"
-                color="inherit"
-                aria-label="close"
-                onClick={dismiss}
-              >
+              <IconButton size="small" color="inherit" aria-label="close" onClick={dismiss}>
                 <Close fontSize="small" />
               </IconButton>
             </Stack>
           }
         >
-          {current?.message ?? ''}
+          <AlertTitle sx={{ mb: 0.25, fontWeight: 700 }}>{current?.title ?? ''}</AlertTitle>
+          {current?.description ?? ''}
         </Alert>
       </Snackbar>
     </ToastContext.Provider>
