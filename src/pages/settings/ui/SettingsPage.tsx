@@ -1,5 +1,10 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { FolderOpenOutlined, GitHub, OpenInNewOutlined } from '@mui/icons-material';
+import {
+  FolderOpenOutlined,
+  GitHub,
+  LanguageOutlined,
+  OpenInNewOutlined,
+} from '@mui/icons-material';
 import { open } from '@tauri-apps/plugin-dialog';
 import { useColorScheme } from '@mui/material/styles';
 import {
@@ -17,6 +22,8 @@ import {
   Switch,
   Typography,
 } from '@mui/material';
+import GB from 'country-flag-icons/react/3x2/GB';
+import RU from 'country-flag-icons/react/3x2/RU';
 import {
   api,
   normalizeThemeMode,
@@ -34,6 +41,29 @@ const AUTHOR_URL = 'https://github.com/NemoKing1210';
 const UPSTREAM_REPO_URL = 'https://github.com/Flowseal/zapret-discord-youtube';
 const UPSTREAM_REPO_LABEL = 'Flowseal/zapret-discord-youtube';
 const PROJECT_REPO_LABEL = 'NemoKing1210/Zapretyd';
+
+const flagSx = {
+  width: 20,
+  height: 'auto',
+  borderRadius: '2px',
+  flexShrink: 0,
+  boxShadow: '0 0 0 1px rgba(0,0,0,.12)',
+} as const;
+
+function LocaleFlag({ preference }: { preference: LocalePreference }) {
+  if (preference === 'en') return <GB title="English" style={flagSx} />;
+  if (preference === 'ru') return <RU title="Русский" style={flagSx} />;
+  return <LanguageOutlined sx={{ fontSize: 20, color: 'text.secondary', flexShrink: 0 }} />;
+}
+
+function LocaleOption({ preference, label }: { preference: LocalePreference; label: string }) {
+  return (
+    <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 1.25 }}>
+      <LocaleFlag preference={preference} />
+      {label}
+    </Box>
+  );
+}
 
 function SettingsSection({
   title,
@@ -146,10 +176,26 @@ export function SettingsPage({
                 label={t('settings.language')}
                 value={normalizeLocalePreference(settings.locale ?? localePreference)}
                 onChange={(event) => void changeLocale(event.target.value as LocalePreference)}
+                renderValue={(value) => {
+                  const preference = normalizeLocalePreference(value);
+                  const label =
+                    preference === 'system'
+                      ? t('settings.languageSystem')
+                      : preference === 'en'
+                        ? t('settings.languageEn')
+                        : t('settings.languageRu');
+                  return <LocaleOption preference={preference} label={label} />;
+                }}
               >
-                <MenuItem value="system">{t('settings.languageSystem')}</MenuItem>
-                <MenuItem value="en">{t('settings.languageEn')}</MenuItem>
-                <MenuItem value="ru">{t('settings.languageRu')}</MenuItem>
+                <MenuItem value="system">
+                  <LocaleOption preference="system" label={t('settings.languageSystem')} />
+                </MenuItem>
+                <MenuItem value="en">
+                  <LocaleOption preference="en" label={t('settings.languageEn')} />
+                </MenuItem>
+                <MenuItem value="ru">
+                  <LocaleOption preference="ru" label={t('settings.languageRu')} />
+                </MenuItem>
               </Select>
             </FormControl>
             <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>

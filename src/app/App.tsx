@@ -9,6 +9,7 @@ import {
   type ServiceStatus,
 } from '../shared/api/zapretyd';
 import { useTranslation } from '../shared/i18n';
+import { PageTransition } from '../shared/ui/PageTransition';
 import { theme } from './theme';
 import { WindowChromeSync } from './WindowChromeSync';
 import { AppShell, type PageKey } from '../widgets/app-shell/ui/AppShell';
@@ -125,12 +126,14 @@ export function App() {
       <CssBaseline />
       <WindowChromeSync theme={settings.theme} />
       <AppShell page={page} onPage={setPage} status={status}>
-        {error && page !== 'versions' && (
-          <div role="alert" style={{ color: '#ba1a1a', marginBottom: 16 }}>
-            {error}
-          </div>
-        )}
-        {content}
+        <PageTransition pageKey={page}>
+          {error && page !== 'versions' && (
+            <div role="alert" style={{ color: '#ba1a1a', marginBottom: 16 }}>
+              {error}
+            </div>
+          )}
+          {content}
+        </PageTransition>
       </AppShell>
       <LibraryPathDialog
         settings={settings}

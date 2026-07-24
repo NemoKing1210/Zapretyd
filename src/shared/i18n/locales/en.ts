@@ -10,6 +10,8 @@ export const en = {
   'shell.adminGranted': 'Admin',
   'shell.adminMissing': 'No admin',
   'shell.appVersion': 'v{{version}}',
+  'shell.collapseSidebar': 'Collapse sidebar',
+  'shell.expandSidebar': 'Expand sidebar',
 
   'overview.title': 'Bypass status',
   'overview.subtitle': 'Manage the compatible zapret service and installed strategies.',

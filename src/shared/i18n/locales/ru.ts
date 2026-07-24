@@ -12,6 +12,8 @@ export const ru: Record<TranslationKey, string> = {
   'shell.adminGranted': 'Админ',
   'shell.adminMissing': 'Без админа',
   'shell.appVersion': 'v{{version}}',
+  'shell.collapseSidebar': 'Свернуть панель',
+  'shell.expandSidebar': 'Развернуть панель',
 
   'overview.title': 'Состояние обхода',
   'overview.subtitle': 'Управляйте совместимой службой zapret и установленными стратегиями.',

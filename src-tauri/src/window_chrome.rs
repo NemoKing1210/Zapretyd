@@ -47,20 +47,11 @@ fn set_caption_color(window: &tauri::WebviewWindow, rgb: (u8, u8, u8)) {
 #[cfg(not(windows))]
 fn set_caption_color(_window: &tauri::WebviewWindow, _rgb: (u8, u8, u8)) {}
 
-/// Keep caption title empty and show the bundled app icon.
+/// Show the app name in the caption and keep the bundled app icon.
 fn apply_caption_branding(app: &AppHandle, window: &tauri::WebviewWindow) {
     use tauri::image::Image;
 
-    let _ = window.set_title("");
-
-    #[cfg(windows)]
-    if let Some(hwnd) = hwnd_of(window) {
-        use windows::core::PCWSTR;
-        use windows::Win32::UI::WindowsAndMessaging::SetWindowTextW;
-        unsafe {
-            let _ = SetWindowTextW(hwnd, PCWSTR::from_raw([0u16].as_ptr()));
-        }
-    }
+    let _ = window.set_title("Zapretyd");
 
     if let Some(icon) = app.default_window_icon() {
         let _ = window.set_icon(icon.clone());
