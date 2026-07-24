@@ -8,6 +8,12 @@ pub struct AppSettings {
     pub last_update_check: Option<String>,
     pub latest_etag: Option<String>,
     pub theme: String,
+    #[serde(default = "default_locale")]
+    pub locale: String,
+}
+
+fn default_locale() -> String {
+    "system".into()
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

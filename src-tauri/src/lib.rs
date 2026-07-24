@@ -23,6 +23,7 @@ pub fn run() {
             app::is_administrator,
             app::relaunch_as_admin,
             releases::check_latest_release,
+            library::get_default_library_path,
             library::list_installed_versions,
             library::install_release,
             library::remove_version,

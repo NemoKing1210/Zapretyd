@@ -14,6 +14,9 @@ use tauri::{Emitter, State, Window};
 use tokio::io::AsyncWriteExt;
 
 const META: &str = ".zapretyd.json";
+/// Fallback when the app data path contains non-ASCII characters (e.g. Cyrillic username).
+const ASCII_FALLBACK_LIBRARY: &str = r"C:\Zapretyd";
+
 pub fn validate_library_path(path: &str) -> Result<PathBuf, String> {
     if path.trim().is_empty()
         || path
@@ -23,6 +26,23 @@ pub fn validate_library_path(path: &str) -> Result<PathBuf, String> {
         return Err("error.library.pathInvalid".into());
     }
     Ok(PathBuf::from(path))
+}
+
+/// Built-in library folder under the app config directory, or an ASCII fallback.
+pub fn resolve_default_library_path(config_dir: &Path) -> PathBuf {
+    let candidate = config_dir.join("library");
+    match candidate.to_str() {
+        Some(path) if validate_library_path(path).is_ok() => candidate,
+        _ => PathBuf::from(ASCII_FALLBACK_LIBRARY),
+    }
+}
+
+#[tauri::command]
+pub fn get_default_library_path(state: State<AppState>) -> Result<String, String> {
+    let path = resolve_default_library_path(&state.config_dir);
+    path.to_str()
+        .map(str::to_string)
+        .ok_or_else(|| "error.library.pathInvalid".into())
 }
 fn versions_dir(base: &str) -> PathBuf {
     Path::new(base).join("versions")
@@ -87,7 +107,7 @@ pub async fn install_release(
     fs::create_dir_all(base.join("versions")).map_err(|e| e.to_string())?;
     let temporary = base.join(format!(".{}.zip", release.tag));
     let response = reqwest::Client::builder()
-        .user_agent("Zapretyd/0.1")
+        .user_agent("Zapretyd/0.2")
         .build()
         .map_err(|e| e.to_string())?
         .get(&release.download_url)
@@ -232,5 +252,18 @@ mod tests {
     fn rejects_non_ascii_paths() {
         assert!(validate_library_path("C:\\Запрет").is_err());
         assert!(validate_library_path("C:\\Zapret").is_ok());
+    }
+    #[test]
+    fn default_library_uses_config_subdir_when_ascii() {
+        let path = resolve_default_library_path(Path::new(r"C:\Users\user\AppData\Roaming\dev.zapretyd.desktop"));
+        assert_eq!(
+            path,
+            PathBuf::from(r"C:\Users\user\AppData\Roaming\dev.zapretyd.desktop\library")
+        );
+    }
+    #[test]
+    fn default_library_falls_back_for_non_ascii_config_dir() {
+        let path = resolve_default_library_path(Path::new(r"C:\Users\Имя\AppData\Roaming\dev.zapretyd.desktop"));
+        assert_eq!(path, PathBuf::from(ASCII_FALLBACK_LIBRARY));
     }
 }

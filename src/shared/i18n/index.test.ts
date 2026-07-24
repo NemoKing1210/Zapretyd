@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { detectLocale, setLocale, t, translateError } from './index';
+import {
+  detectLocale,
+  normalizeLocalePreference,
+  resolveLocale,
+  setLocale,
+  t,
+  translateError,
+} from './index';
 
 describe('i18n', () => {
   it('detects Russian locale', () => {
@@ -10,6 +17,21 @@ describe('i18n', () => {
   it('falls back to English', () => {
     expect(detectLocale('de-DE')).toBe('en');
     expect(detectLocale('')).toBe('en');
+  });
+
+  it('normalizes locale preference', () => {
+    expect(normalizeLocalePreference('ru')).toBe('ru');
+    expect(normalizeLocalePreference('en')).toBe('en');
+    expect(normalizeLocalePreference('system')).toBe('system');
+    expect(normalizeLocalePreference(undefined)).toBe('system');
+    expect(normalizeLocalePreference('de')).toBe('system');
+  });
+
+  it('resolves system preference from OS locale', () => {
+    expect(resolveLocale('system', 'ru-RU')).toBe('ru');
+    expect(resolveLocale('system', 'en-US')).toBe('en');
+    expect(resolveLocale('en', 'ru-RU')).toBe('en');
+    expect(resolveLocale('ru', 'en-US')).toBe('ru');
   });
 
   it('translates known error codes', () => {

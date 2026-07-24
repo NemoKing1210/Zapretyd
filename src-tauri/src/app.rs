@@ -3,6 +3,7 @@ use std::{fs, path::PathBuf, sync::Mutex};
 use tauri::State;
 
 pub struct AppState {
+    pub config_dir: PathBuf,
     pub config_path: PathBuf,
     pub settings: Mutex<AppSettings>,
 }
@@ -16,9 +17,11 @@ impl AppState {
             .unwrap_or(AppSettings {
                 auto_check_updates: true,
                 theme: "system".into(),
+                locale: "system".into(),
                 ..Default::default()
             });
         Ok(Self {
+            config_dir: dir,
             config_path,
             settings: Mutex::new(settings),
         })

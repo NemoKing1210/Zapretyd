@@ -12,6 +12,7 @@ import { en, type TranslationKey } from './locales/en';
 import { ru } from './locales/ru';
 
 export type Locale = 'en' | 'ru';
+export type LocalePreference = 'system' | Locale;
 
 const catalogs: Record<Locale, Record<TranslationKey, string>> = { en, ru };
 const errorKeys = new Set(Object.keys(en).filter((key) => key.startsWith('error.')));
@@ -20,6 +21,15 @@ let currentLocale: Locale = 'en';
 
 export function detectLocale(systemLocale: string): Locale {
   return systemLocale.trim().toLowerCase().startsWith('ru') ? 'ru' : 'en';
+}
+
+export function normalizeLocalePreference(value?: string): LocalePreference {
+  if (value === 'en' || value === 'ru' || value === 'system') return value;
+  return 'system';
+}
+
+export function resolveLocale(preference: LocalePreference, systemLocale: string): Locale {
+  return preference === 'system' ? detectLocale(systemLocale) : preference;
 }
 
 export function setLocale(locale: Locale) {
@@ -56,6 +66,8 @@ export function translateError(error: string, locale: Locale = currentLocale): s
 
 type I18nContextValue = {
   locale: Locale;
+  localePreference: LocalePreference;
+  setLocalePreference: (preference: LocalePreference) => void;
   t: (key: TranslationKey, params?: Record<string, string | number>) => string;
   translateError: (error: string) => string;
 };
@@ -64,19 +76,37 @@ const I18nContext = createContext<I18nContextValue | null>(null);
 
 export function I18nProvider({ children }: { children: ReactNode }) {
   const [locale, setLocaleState] = useState<Locale>('en');
+  const [localePreference, setLocalePreferenceState] = useState<LocalePreference>('system');
+  const [systemLocale, setSystemLocale] = useState('en-US');
   const [ready, setReady] = useState(false);
 
-  useEffect(() => {
-    api
-      .systemLocale()
-      .then((systemLocale) => {
-        const next = detectLocale(systemLocale);
-        setLocale(next);
-        setLocaleState(next);
-      })
-      .catch(() => setLocale('en'))
-      .finally(() => setReady(true));
+  const applyPreference = useCallback((preference: LocalePreference, nextSystemLocale: string) => {
+    const next = resolveLocale(preference, nextSystemLocale);
+    setLocale(next);
+    setLocaleState(next);
+    setLocalePreferenceState(preference);
   }, []);
+
+  useEffect(() => {
+    Promise.all([api.systemLocale(), api.settings()])
+      .then(([nextSystemLocale, settings]) => {
+        setSystemLocale(nextSystemLocale);
+        applyPreference(normalizeLocalePreference(settings.locale), nextSystemLocale);
+      })
+      .catch(() => {
+        setLocale('en');
+        setLocaleState('en');
+        setLocalePreferenceState('system');
+      })
+      .finally(() => setReady(true));
+  }, [applyPreference]);
+
+  const setLocalePreference = useCallback(
+    (preference: LocalePreference) => {
+      applyPreference(preference, systemLocale);
+    },
+    [applyPreference, systemLocale],
+  );
 
   const translate = useCallback(
     (key: TranslationKey, params?: Record<string, string | number>) => t(key, params, locale),
@@ -88,7 +118,15 @@ export function I18nProvider({ children }: { children: ReactNode }) {
 
   return createElement(
     I18nContext.Provider,
-    { value: { locale, t: translate, translateError: translateErr } },
+    {
+      value: {
+        locale,
+        localePreference,
+        setLocalePreference,
+        t: translate,
+        translateError: translateErr,
+      },
+    },
     children,
   );
 }

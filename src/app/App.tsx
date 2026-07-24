@@ -121,7 +121,7 @@ export function App() {
   return (
     <ThemeProvider theme={theme} defaultMode="system">
       <CssBaseline />
-      <AppShell page={page} onPage={setPage}>
+      <AppShell page={page} onPage={setPage} status={status}>
         {error && page !== 'versions' && (
           <div role="alert" style={{ color: '#ba1a1a', marginBottom: 16 }}>
             {error}

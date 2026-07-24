@@ -10,12 +10,22 @@ The app does **not** ship zapret binaries. It downloads official GitHub release 
 
 ## Versioning
 
-App version is maintained in `package.json` (`version` field). Bump it for releases and user-visible version changes.
+App version is maintained in `package.json` (`version` field). Use SemVer (`MAJOR.MINOR.PATCH`).
 
-When bumping the app version, keep these in sync with `package.json`:
+**Bump the version when finishing a change set that users would notice or that should ship as a distinct build**, including:
+
+- New features or settings (e.g. language picker, default library path)
+- User-facing bug fixes or behavior changes
+- UI/copy changes that alter how the app works
+- Preparing a release / installer build
+
+**Do not bump** for docs-only edits, internal refactors with no user impact, dependency housekeeping alone, or unfinished WIP on a feature branch.
+
+When bumping, keep these in sync with `package.json`:
 
 - `src-tauri/tauri.conf.json` → `version`
 - `src-tauri/Cargo.toml` → `package.version`
+- `package-lock.json` → root `version` (and `packages[""].version`)
 
 Do not invent a separate versioning scheme outside `package.json`.
 
@@ -26,9 +36,10 @@ Do not invent a separate versioning scheme outside `package.json`.
 - UI copy lives in `src/shared/i18n/locales/en.ts` and `ru.ts`
 - Backend returns stable error codes (e.g. `error.library.notConfigured`); the frontend translates them
 - Locale is detected from the Windows system culture via `get_system_locale`; fallback is English (`en`)
+- Users can override the language in Settings (`AppSettings.locale`: `system` | `en` | `ru`)
 - Use `useTranslation()` in React components; use `getLocale()` for `Intl` formatting helpers
 
-Documentation (`README.md`, `AGENTS.md`) stays in English.
+Documentation (`README.md`, `AGENTS.md`, `CLAUDE.md`) stays in English.
 
 ## Tech stack
 
@@ -72,6 +83,7 @@ src-tauri/              Rust backend
 - Each release is extracted to `<library>/versions/<tag>/`.
 - Metadata is stored in `<library>/versions/<tag>/.zapretyd.json`.
 - Library paths must be ASCII-only (no Cyrillic or special characters) — enforced in `library::validate_library_path`.
+- Users may skip picking a folder and use the built-in path from `library::resolve_default_library_path` (`<app_config_dir>/library`, or `C:\Zapretyd` if that path is not ASCII-safe).
 
 ### Service management
 

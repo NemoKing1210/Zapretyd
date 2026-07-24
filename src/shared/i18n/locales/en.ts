@@ -4,6 +4,12 @@ export const en = {
   'nav.service': 'Service',
   'nav.settings': 'Settings',
   'app.subtitle': 'zapret manager',
+  'shell.serviceRunning': 'Service running',
+  'shell.serviceStopped': 'Service stopped',
+  'shell.strategy': '{{name}}',
+  'shell.adminGranted': 'Admin',
+  'shell.adminMissing': 'No admin',
+  'shell.appVersion': 'v{{version}}',
 
   'overview.title': 'Bypass status',
   'overview.subtitle': 'Manage the compatible zapret service and installed strategies.',
@@ -62,6 +68,11 @@ export const en = {
   'settings.libraryTitle': 'Version library',
   'settings.libraryNotSelected': 'Not selected',
   'settings.changeFolder': 'Change folder',
+  'settings.useAppFolder': 'Store in the app folder',
+  'settings.language': 'Language',
+  'settings.languageSystem': 'System',
+  'settings.languageEn': 'English',
+  'settings.languageRu': 'Russian',
   'settings.autoCheckUpdates': 'Check for updates on launch and once per day',
   'settings.autoCheckHint': 'Checks run only while Zapretyd is open.',
   'settings.githubInfo':
@@ -69,10 +80,11 @@ export const en = {
 
   'libraryDialog.title': 'Where should zapret versions be stored?',
   'libraryDialog.body':
-    'Choose a path without Cyrillic or special characters, for example {{path}}.',
+    'You can keep versions in the app folder, or choose your own path without Cyrillic or special characters (for example {{path}}).',
   'libraryDialog.folderLabel': 'Library folder',
   'libraryDialog.chooseFolder': 'Choose folder',
-  'libraryDialog.save': 'Save folder',
+  'libraryDialog.useAppStorage': 'Store in the app folder',
+  'libraryDialog.save': 'Continue',
   'libraryDialog.pickerTitle': 'Choose Zapretyd library folder',
 
   'error.library.pathInvalid': 'Choose a path without Cyrillic or special characters',

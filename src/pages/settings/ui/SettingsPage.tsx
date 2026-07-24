@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { FolderOpenOutlined } from '@mui/icons-material';
 import { open } from '@tauri-apps/plugin-dialog';
 import {
@@ -6,13 +7,21 @@ import {
   Button,
   Card,
   CardContent,
+  FormControl,
   FormControlLabel,
+  InputLabel,
+  MenuItem,
+  Select,
   Stack,
   Switch,
   Typography,
 } from '@mui/material';
-import type { AppSettings } from '../../../shared/api/zapretyd';
-import { useTranslation } from '../../../shared/i18n';
+import { api, type AppSettings } from '../../../shared/api/zapretyd';
+import {
+  normalizeLocalePreference,
+  useTranslation,
+  type LocalePreference,
+} from '../../../shared/i18n';
 
 export function SettingsPage({
   settings,
@@ -21,11 +30,33 @@ export function SettingsPage({
   settings: AppSettings;
   onSave: (settings: AppSettings) => Promise<void>;
 }) {
-  const { t } = useTranslation();
+  const { t, localePreference, setLocalePreference } = useTranslation();
+  const [defaultPath, setDefaultPath] = useState('');
+  const useAppFolder = Boolean(defaultPath && settings.libraryPath === defaultPath);
+
+  useEffect(() => {
+    void api.defaultLibraryPath().then(setDefaultPath);
+  }, []);
+
   const choose = async () => {
     const path = await open({ directory: true, multiple: false });
     if (typeof path === 'string') onSave({ ...settings, libraryPath: path });
   };
+
+  const toggleAppFolder = async (checked: boolean) => {
+    if (checked) {
+      const libraryPath = defaultPath || (await api.defaultLibraryPath());
+      await onSave({ ...settings, libraryPath });
+      return;
+    }
+    await choose();
+  };
+
+  const changeLocale = async (preference: LocalePreference) => {
+    setLocalePreference(preference);
+    await onSave({ ...settings, locale: preference });
+  };
+
   return (
     <Stack spacing={3}>
       <Box>
@@ -40,9 +71,39 @@ export function SettingsPage({
           <Typography color="text.secondary" sx={{ mt: 1, wordBreak: 'break-all' }}>
             {settings.libraryPath ?? t('settings.libraryNotSelected')}
           </Typography>
-          <Button variant="text" sx={{ mt: 1 }} startIcon={<FolderOpenOutlined />} onClick={choose}>
-            {t('settings.changeFolder')}
-          </Button>
+          <FormControlLabel
+            control={
+              <Switch
+                checked={useAppFolder}
+                disabled={!defaultPath}
+                onChange={(_, checked) => void toggleAppFolder(checked)}
+              />
+            }
+            label={t('settings.useAppFolder')}
+            sx={{ mt: 1, display: 'flex' }}
+          />
+          {!useAppFolder && (
+            <Button variant="text" startIcon={<FolderOpenOutlined />} onClick={choose}>
+              {t('settings.changeFolder')}
+            </Button>
+          )}
+        </CardContent>
+      </Card>
+      <Card>
+        <CardContent>
+          <FormControl fullWidth>
+            <InputLabel id="settings-language-label">{t('settings.language')}</InputLabel>
+            <Select
+              labelId="settings-language-label"
+              label={t('settings.language')}
+              value={normalizeLocalePreference(settings.locale ?? localePreference)}
+              onChange={(event) => void changeLocale(event.target.value as LocalePreference)}
+            >
+              <MenuItem value="system">{t('settings.languageSystem')}</MenuItem>
+              <MenuItem value="en">{t('settings.languageEn')}</MenuItem>
+              <MenuItem value="ru">{t('settings.languageRu')}</MenuItem>
+            </Select>
+          </FormControl>
         </CardContent>
       </Card>
       <Card>

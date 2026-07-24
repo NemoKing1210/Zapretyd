@@ -6,6 +6,12 @@ export const ru: Record<TranslationKey, string> = {
   'nav.service': 'Служба',
   'nav.settings': 'Настройки',
   'app.subtitle': 'менеджер zapret',
+  'shell.serviceRunning': 'Служба работает',
+  'shell.serviceStopped': 'Служба остановлена',
+  'shell.strategy': '{{name}}',
+  'shell.adminGranted': 'Админ',
+  'shell.adminMissing': 'Без админа',
+  'shell.appVersion': 'v{{version}}',
 
   'overview.title': 'Состояние обхода',
   'overview.subtitle': 'Управляйте совместимой службой zapret и установленными стратегиями.',
@@ -65,16 +71,23 @@ export const ru: Record<TranslationKey, string> = {
   'settings.libraryTitle': 'Библиотека версий',
   'settings.libraryNotSelected': 'Не выбрана',
   'settings.changeFolder': 'Изменить папку',
+  'settings.useAppFolder': 'Хранить в папке приложения',
+  'settings.language': 'Язык',
+  'settings.languageSystem': 'Системный',
+  'settings.languageEn': 'English',
+  'settings.languageRu': 'Русский',
   'settings.autoCheckUpdates': 'Проверять обновления при запуске и раз в сутки',
   'settings.autoCheckHint': 'Проверка выполняется только когда Zapretyd открыт.',
   'settings.githubInfo':
     'Zapretyd загружает архивы только из GitHub Releases проекта Flowseal/zapret-discord-youtube.',
 
   'libraryDialog.title': 'Где хранить версии zapret?',
-  'libraryDialog.body': 'Выберите путь без кириллицы и специальных символов, например {{path}}.',
+  'libraryDialog.body':
+    'Можно хранить версии в папке приложения или выбрать свой путь без кириллицы и специальных символов (например {{path}}).',
   'libraryDialog.folderLabel': 'Папка библиотеки',
   'libraryDialog.chooseFolder': 'Выбрать папку',
-  'libraryDialog.save': 'Сохранить папку',
+  'libraryDialog.useAppStorage': 'Хранить в папке приложения',
+  'libraryDialog.save': 'Продолжить',
   'libraryDialog.pickerTitle': 'Выберите папку библиотеки Zapretyd',
 
   'error.library.pathInvalid': 'Выберите путь без кириллицы и специальных символов',
