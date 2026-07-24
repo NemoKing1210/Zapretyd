@@ -1,6 +1,6 @@
 import { CssBaseline, ThemeProvider, Box } from '@mui/material';
 import { useColorScheme } from '@mui/material/styles';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   api,
   normalizeThemeMode,
@@ -31,6 +31,7 @@ function AppBody() {
   const { showToast } = useToast();
   const { setMode } = useColorScheme();
   const [page, setPage] = useState<PageKey>('overview');
+  const [versionsTab, setVersionsTab] = useState<'installed' | 'all'>('installed');
   const [settings, setSettings] = useState<AppSettings>();
   const [versions, setVersions] = useState<InstalledVersion[]>([]);
   const [status, setStatus] = useState<ServiceStatus>();
@@ -42,6 +43,16 @@ function AppBody() {
   const [releasesNetworkError, setReleasesNetworkError] = useState<string>();
   const [catalogLoading, setCatalogLoading] = useState(true);
   const [defaultLibraryPath, setDefaultLibraryPath] = useState<string>();
+  const settingsRef = useRef(settings);
+  useEffect(() => {
+    settingsRef.current = settings;
+  }, [settings]);
+
+  const openAllVersions = useCallback(() => {
+    setVersionsTab('all');
+    setPage('versions');
+  }, []);
+
   const showError = useCallback(
     (cause: unknown) => {
       const raw = String(cause);
@@ -63,6 +74,7 @@ function AppBody() {
   const refreshCatalog = useCallback(async () => {
     setCatalogLoading(true);
     try {
+      const previousTag = settingsRef.current?.cachedLatestTag;
       const catalog = await api.refreshReleaseCatalog();
       if (catalog.fromCache) {
         setReleasesNetwork(navigator.onLine ? 'unreachable' : 'offline');
@@ -76,6 +88,17 @@ function AppBody() {
       } else {
         setReleasesNetwork('ok');
         setReleasesNetworkError(undefined);
+        if (!previousTag || previousTag !== catalog.latestTag) {
+          showToast({
+            message: t('toast.newVersionAvailable', { tag: catalog.latestTag }),
+            severity: 'info',
+            duration: 12000,
+            action: {
+              label: t('toast.install'),
+              onClick: openAllVersions,
+            },
+          });
+        }
       }
       setSettings((prev) =>
         prev
@@ -92,7 +115,7 @@ function AppBody() {
     } finally {
       setCatalogLoading(false);
     }
-  }, [translateError]);
+  }, [openAllVersions, showToast, t, translateError]);
   useEffect(() => installGlobalErrorHandlers(), []);
   useEffect(() => {
     api.defaultLibraryPath().then(setDefaultLibraryPath).catch(() => undefined);
@@ -178,6 +201,10 @@ function AppBody() {
     setReleasesNetwork('ok');
     setReleasesNetworkError(undefined);
   }, []);
+  const goToPage = useCallback((next: PageKey) => {
+    setPage(next);
+    if (next === 'versions') setVersionsTab('installed');
+  }, []);
   if (!settings) return null;
   const useAppLibrary = Boolean(
     defaultLibraryPath && settings.libraryPath === defaultLibraryPath,
@@ -210,6 +237,8 @@ function AppBody() {
         busy={busy}
         error={error}
         installingTag={installingTag}
+        view={versionsTab}
+        onViewChange={setVersionsTab}
         onInstall={install}
         onRemove={(tag) =>
           runAction(() => api.removeVersion(tag), t('toast.versionRemoved', { tag }))
@@ -218,7 +247,15 @@ function AppBody() {
         onReleasesReachable={markReleasesReachable}
       />
     ) : page === 'logs' && import.meta.env.DEV ? (
-      <LogsPage />
+      <LogsPage
+        cachedLatestTag={settings.cachedLatestTag}
+        onClearCachedLatestTag={async () => {
+          const next = { ...settings, cachedLatestTag: undefined };
+          await api.saveSettings(next);
+          setSettings(next);
+          showToast(t('logs.cachedLatestTagCleared'));
+        }}
+      />
     ) : (
       <SettingsPage settings={settings} onSave={(next) => saveSettings(next)} />
     );
@@ -227,10 +264,13 @@ function AppBody() {
       <WindowChromeSync theme={settings.theme} />
       <AppShell
         page={page}
-        onPage={setPage}
+        onPage={goToPage}
         status={status}
         installedCount={versions.length}
         syncing={busy ? 'download' : catalogLoading ? 'catalog' : undefined}
+        latestTag={settings.cachedLatestTag}
+        latestInstalled={versions.some((version) => version.tag === settings.cachedLatestTag)}
+        onOpenLatestVersion={openAllVersions}
       >
         <PageTransition pageKey={page}>
           {error && page !== 'versions' && page !== 'logs' && (

@@ -11,6 +11,7 @@ export const en = {
   'shell.adminMissing': 'No administrator rights',
   'shell.checkingReleases': 'Checking releases…',
   'shell.downloadingVersion': 'Downloading…',
+  'shell.latestVersion': 'Latest {{tag}}',
   'shell.appVersion': 'v{{version}}',
   'shell.collapseSidebar': 'Collapse sidebar',
   'shell.expandSidebar': 'Expand sidebar',
@@ -23,6 +24,8 @@ export const en = {
   'toast.serviceActivated': 'Service started with the selected strategy',
   'toast.serviceStopped': 'Service stopped',
   'toast.serviceRemoved': 'Service removed',
+  'toast.newVersionAvailable': 'New version available: {{tag}}',
+  'toast.install': 'Install',
 
   'error.generic': 'Something went wrong. Please try again.',
   'error.details': 'Error details',
@@ -137,6 +140,12 @@ export const en = {
   'logs.empty': 'No errors captured yet.',
   'logs.clear': 'Clear',
   'logs.count': '{{count}} entries',
+  'logs.debugTitle': 'Debug tools',
+  'logs.debugHint': 'Helpers for testing release catalog and update toasts.',
+  'logs.cachedLatestTag': 'Cached latest tag',
+  'logs.cachedLatestTagEmpty': 'Not set',
+  'logs.clearCachedLatestTag': 'Clear cached latest tag',
+  'logs.cachedLatestTagCleared': 'Cached latest tag cleared',
 
   'libraryDialog.title': 'Where should zapret versions be stored?',
   'libraryDialog.body':

@@ -22,6 +22,8 @@ import { InstalledVersionsList } from './InstalledVersionsList';
 type ViewMode = 'installed' | 'all';
 type NetworkStatus = 'ok' | 'offline' | 'unreachable';
 
+export type VersionsTab = ViewMode;
+
 export function VersionsPage({
   versions,
   latestTag,
@@ -33,6 +35,8 @@ export function VersionsPage({
   busy,
   error,
   installingTag,
+  view: viewProp,
+  onViewChange,
   onInstall,
   onRemove,
   onOpen,
@@ -48,13 +52,20 @@ export function VersionsPage({
   busy: boolean;
   error?: string;
   installingTag?: string;
+  view?: VersionsTab;
+  onViewChange?: (view: VersionsTab) => void;
   onInstall: (release: ReleaseInfo, force?: boolean) => void | Promise<void>;
   onRemove: (tag: string) => void;
   onOpen: (path: string) => void;
   onReleasesReachable: () => void;
 }) {
   const { t, translateError } = useTranslation();
-  const [view, setView] = useState<ViewMode>('installed');
+  const [uncontrolledView, setUncontrolledView] = useState<ViewMode>('installed');
+  const view = viewProp ?? uncontrolledView;
+  const setView = (next: ViewMode) => {
+    onViewChange?.(next);
+    if (viewProp === undefined) setUncontrolledView(next);
+  };
   const [releases, setReleases] = useState<ReleaseInfo[]>([]);
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(false);

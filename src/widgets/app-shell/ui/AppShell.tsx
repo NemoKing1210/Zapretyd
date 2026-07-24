@@ -6,9 +6,11 @@ import {
   ChevronRight,
   DashboardOutlined,
   FolderOpenOutlined,
+  NewReleasesOutlined,
   PlayArrowOutlined,
   SettingsOutlined,
   StopOutlined,
+  VerifiedOutlined,
 } from '@mui/icons-material';
 import {
   AppBar,
@@ -67,6 +69,9 @@ export function AppShell({
   status,
   installedCount = 0,
   syncing,
+  latestTag,
+  latestInstalled = false,
+  onOpenLatestVersion,
   children,
 }: {
   page: PageKey;
@@ -74,6 +79,9 @@ export function AppShell({
   status?: ServiceStatus;
   installedCount?: number;
   syncing?: 'catalog' | 'download';
+  latestTag?: string;
+  latestInstalled?: boolean;
+  onOpenLatestVersion?: () => void;
   children: React.ReactNode;
 }) {
   const { t } = useTranslation();
@@ -83,6 +91,7 @@ export function AppShell({
   const appVersion = import.meta.env.VITE_APP_VERSION as string;
   const drawerWidth = collapsed ? DRAWER_WIDTH_COLLAPSED : DRAWER_WIDTH;
   const errorCount = import.meta.env.DEV ? errorLog.length : 0;
+  const showLatestBadge = Boolean(latestTag) && syncing !== 'catalog';
 
   const toggleCollapsed = () => {
     setCollapsed((prev) => {
@@ -116,7 +125,13 @@ export function AppShell({
             }),
         }}
       >
-        <Toolbar sx={{ gap: 1, justifyContent: 'flex-end', minHeight: { xs: 64 } }}>
+        <Toolbar
+          sx={{
+            gap: 1,
+            justifyContent: 'space-between',
+            minHeight: { xs: 64 },
+          }}
+        >
           <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
             {syncing && (
               <Chip
@@ -134,6 +149,19 @@ export function AppShell({
                 }}
               />
             )}
+            {showLatestBadge && (
+              <Chip
+                size="small"
+                clickable
+                color={latestInstalled ? 'default' : 'primary'}
+                variant="outlined"
+                icon={latestInstalled ? <VerifiedOutlined /> : <NewReleasesOutlined />}
+                label={t('shell.latestVersion', { tag: latestTag! })}
+                onClick={onOpenLatestVersion}
+              />
+            )}
+          </Stack>
+          <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
             <Chip
               size="small"
               clickable

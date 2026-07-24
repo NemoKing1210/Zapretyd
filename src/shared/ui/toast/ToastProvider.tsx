@@ -1,6 +1,7 @@
-import { Alert, Snackbar } from '@mui/material';
+import { Close } from '@mui/icons-material';
+import { Alert, Button, IconButton, Snackbar, Stack } from '@mui/material';
 import { useCallback, useMemo, useState, type ReactNode } from 'react';
-import type { ShowToastOptions, ToastSeverity } from './types';
+import type { ShowToastOptions, ToastAction, ToastSeverity } from './types';
 import { ToastContext } from './useToast';
 
 type ToastItem = {
@@ -8,6 +9,7 @@ type ToastItem = {
   message: string;
   severity: ToastSeverity;
   duration: number;
+  action?: ToastAction;
 };
 
 let toastSeq = 0;
@@ -23,6 +25,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       message: parsed.message,
       severity: parsed.severity ?? 'success',
       duration: parsed.duration ?? 4000,
+      action: parsed.action,
     };
     setQueue((prev) => [...prev, item]);
   }, []);
@@ -49,9 +52,32 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         <Alert
           severity={current?.severity ?? 'success'}
           variant="filled"
-          onClose={dismiss}
           elevation={3}
-          sx={{ width: '100%', minWidth: 280, maxWidth: 480 }}
+          sx={{ width: '100%', minWidth: 280, maxWidth: 520 }}
+          action={
+            <Stack direction="row" spacing={0.5} alignItems="center">
+              {current?.action && (
+                <Button
+                  color="inherit"
+                  size="small"
+                  onClick={() => {
+                    current.action?.onClick();
+                    dismiss();
+                  }}
+                >
+                  {current.action.label}
+                </Button>
+              )}
+              <IconButton
+                size="small"
+                color="inherit"
+                aria-label="close"
+                onClick={dismiss}
+              >
+                <Close fontSize="small" />
+              </IconButton>
+            </Stack>
+          }
         >
           {current?.message ?? ''}
         </Alert>

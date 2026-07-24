@@ -13,6 +13,7 @@ export const ru: Record<TranslationKey, string> = {
   'shell.adminMissing': 'Без прав администратора',
   'shell.checkingReleases': 'Проверка релизов…',
   'shell.downloadingVersion': 'Скачивание…',
+  'shell.latestVersion': 'Последняя {{tag}}',
   'shell.appVersion': 'v{{version}}',
   'shell.collapseSidebar': 'Свернуть панель',
   'shell.expandSidebar': 'Развернуть панель',
@@ -25,6 +26,8 @@ export const ru: Record<TranslationKey, string> = {
   'toast.serviceActivated': 'Служба запущена с выбранной стратегией',
   'toast.serviceStopped': 'Служба остановлена',
   'toast.serviceRemoved': 'Служба удалена',
+  'toast.newVersionAvailable': 'Доступна новая версия: {{tag}}',
+  'toast.install': 'Установить',
 
   'error.generic': 'Что-то пошло не так. Попробуйте ещё раз.',
   'error.details': 'Подробности ошибки',
@@ -139,6 +142,12 @@ export const ru: Record<TranslationKey, string> = {
   'logs.empty': 'Ошибок пока нет.',
   'logs.clear': 'Очистить',
   'logs.count': '{{count}} записей',
+  'logs.debugTitle': 'Отладка',
+  'logs.debugHint': 'Инструменты для проверки каталога релизов и тостов об обновлениях.',
+  'logs.cachedLatestTag': 'Сохранённый тег последней версии',
+  'logs.cachedLatestTagEmpty': 'Не задан',
+  'logs.clearCachedLatestTag': 'Очистить сохранённый тег',
+  'logs.cachedLatestTagCleared': 'Сохранённый тег очищен',
 
   'libraryDialog.title': 'Где хранить версии zapret?',
   'libraryDialog.body':
