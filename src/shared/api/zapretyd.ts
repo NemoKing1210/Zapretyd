@@ -23,6 +23,14 @@ export type ReleaseInfo = {
   assetName: string;
   size: number;
   isNewerThanInstalled: boolean;
+  body?: string;
+  htmlUrl?: string;
+  prerelease: boolean;
+};
+export type ReleasePage = {
+  releases: ReleaseInfo[];
+  page: number;
+  hasMore: boolean;
 };
 export type InstalledVersion = {
   tag: string;
@@ -50,8 +58,10 @@ export const api = {
   isAdmin: () => invoke<boolean>('is_administrator'),
   relaunchAsAdmin: () => invoke<void>('relaunch_as_admin'),
   latest: () => invoke<ReleaseInfo>('check_latest_release'),
+  listReleases: (page: number) => invoke<ReleasePage>('list_releases', { page }),
   versions: () => invoke<InstalledVersion[]>('list_installed_versions'),
-  install: (release: ReleaseInfo) => invoke<InstalledVersion>('install_release', { release }),
+  install: (release: ReleaseInfo, force = false) =>
+    invoke<InstalledVersion>('install_release', { release, force }),
   removeVersion: (tag: string) => invoke<void>('remove_version', { tag }),
   strategies: (tag: string) => invoke<StrategyInfo[]>('get_strategies', { tag }),
   openDirectory: (path: string) => invoke<void>('open_directory', { path }),

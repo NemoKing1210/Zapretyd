@@ -26,6 +26,17 @@ pub struct ReleaseInfo {
     pub asset_name: String,
     pub size: u64,
     pub is_newer_than_installed: bool,
+    pub body: Option<String>,
+    pub html_url: Option<String>,
+    pub prerelease: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReleasePage {
+    pub releases: Vec<ReleaseInfo>,
+    pub page: u32,
+    pub has_more: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -73,6 +84,14 @@ pub struct GithubRelease {
     pub name: Option<String>,
     pub published_at: String,
     pub assets: Vec<GithubAsset>,
+    #[serde(default)]
+    pub body: Option<String>,
+    #[serde(default)]
+    pub prerelease: bool,
+    #[serde(default)]
+    pub draft: bool,
+    #[serde(default)]
+    pub html_url: Option<String>,
 }
 #[derive(Debug, Deserialize)]
 pub struct GithubAsset {

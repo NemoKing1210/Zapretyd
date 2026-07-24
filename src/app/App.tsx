@@ -24,8 +24,8 @@ export function App() {
   const [settings, setSettings] = useState<AppSettings>();
   const [versions, setVersions] = useState<InstalledVersion[]>([]);
   const [status, setStatus] = useState<ServiceStatus>();
-  const [latest, setLatest] = useState<ReleaseInfo>();
   const [busy, setBusy] = useState(false);
+  const [installingTag, setInstallingTag] = useState<string>();
   const [serviceBusy, setServiceBusy] = useState(false);
   const [error, setError] = useState('');
   const showError = useCallback(
@@ -42,14 +42,10 @@ export function App() {
     }
   }, [showError]);
   const check = useCallback(async () => {
-    setBusy(true);
-    setError('');
     try {
-      setLatest(await api.latest());
+      await api.latest();
     } catch (cause) {
       showError(cause);
-    } finally {
-      setBusy(false);
     }
   }, [showError]);
   useEffect(() => {
@@ -71,17 +67,18 @@ export function App() {
     setSettings(next);
     await refresh();
   };
-  const install = async () => {
-    if (!latest) return;
+  const install = async (release: ReleaseInfo, force = false) => {
     setBusy(true);
+    setInstallingTag(release.tag);
+    setError('');
     try {
-      await api.install(latest);
+      await api.install(release, force);
       await refresh();
-      setLatest({ ...latest, isNewerThanInstalled: false });
     } catch (cause) {
       showError(cause);
     } finally {
       setBusy(false);
+      setInstallingTag(undefined);
     }
   };
   const runAction = async (action: () => Promise<unknown>) => {
@@ -118,10 +115,9 @@ export function App() {
     ) : page === 'versions' ? (
       <VersionsPage
         versions={versions}
-        latest={latest}
         busy={busy}
         error={error}
-        onCheck={check}
+        installingTag={installingTag}
         onInstall={install}
         onRemove={(tag) => runAction(() => api.removeVersion(tag))}
         onOpen={(path) => runAction(() => api.openDirectory(path))}

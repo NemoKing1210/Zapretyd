@@ -1,6 +1,6 @@
 [package]
 name = "zapretyd"
-version = "0.4.1"
+version = "0.4.2"
 description = "Windows manager for zapret-discord-youtube"
 edition = "2021"
 

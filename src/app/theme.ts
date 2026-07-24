@@ -5,6 +5,7 @@ export const theme = createTheme({
       palette: {
         primary: { main: '#245BDB' },
         secondary: { main: '#006A63' },
+        error: { main: '#9B1B1B' },
         background: { default: '#F8F9FC', paper: '#FFFFFF' },
       },
     },
@@ -12,6 +13,7 @@ export const theme = createTheme({
       palette: {
         primary: { main: '#B6C4FF' },
         secondary: { main: '#74D7CA' },
+        error: { main: '#C62828' },
         background: { default: '#111318', paper: '#1C1F26' },
       },
     },

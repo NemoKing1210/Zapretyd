@@ -163,20 +163,30 @@ pub fn list_installed_versions(state: State<AppState>) -> Result<Vec<InstalledVe
 #[tauri::command]
 pub async fn install_release(
     release: ReleaseInfo,
+    force: bool,
     state: State<'_, AppState>,
     window: Window,
 ) -> Result<InstalledVersion, String> {
-    let base = state
+    let base_path = state
         .settings
         .lock()
         .map_err(|e| e.to_string())?
         .library_path
         .clone()
         .ok_or("error.library.chooseFirst".to_string())?;
-    let base = validate_library_path(&base)?;
+    let base = validate_library_path(&base_path)?;
     let target = base.join("versions").join(&release.tag);
     if target.exists() {
-        return Err("error.library.versionExists".into());
+        if !force {
+            return Err("error.library.versionExists".into());
+        }
+        if list_versions_at(&base_path)?
+            .iter()
+            .any(|v| v.tag == release.tag && v.is_active)
+        {
+            return Err("error.library.cannotRemoveActive".into());
+        }
+        fs::remove_dir_all(&target).map_err(|e| e.to_string())?;
     }
     fs::create_dir_all(base.join("versions")).map_err(|e| e.to_string())?;
     let temporary = base.join(format!(".{}.zip", release.tag));

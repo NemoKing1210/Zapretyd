@@ -1,7 +1,7 @@
 {
   "name": "zapretyd",
   "private": false,
-  "version": "0.4.1",
+  "version": "0.4.2",
   "author": {
     "name": "NemoKing",
     "url": "https://github.com/NemoKing1210"
@@ -28,7 +28,8 @@
     "@tauri-apps/plugin-opener": "^2.0.0",
     "country-flag-icons": "^1.6.20",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "react-markdown": "^10.1.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
