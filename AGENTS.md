@@ -32,12 +32,12 @@ Documentation (`README.md`, `AGENTS.md`) stays in English.
 
 ## Tech stack
 
-| Layer | Stack |
-|-------|-------|
-| Desktop shell | Tauri 2 (Rust) |
-| Frontend | React 19, TypeScript, Vite |
-| UI | MUI 7, Emotion |
-| Tests | Vitest (frontend), Rust `#[test]` (backend) |
+| Layer         | Stack                                       |
+| ------------- | ------------------------------------------- |
+| Desktop shell | Tauri 2 (Rust)                              |
+| Frontend      | React 19, TypeScript, Vite                  |
+| UI            | MUI 7, Emotion                              |
+| Tests         | Vitest (frontend), Rust `#[test]` (backend) |
 
 ## Repository layout
 
@@ -97,6 +97,8 @@ Other scripts:
 npm run dev          # Vite only (no Tauri shell)
 npm run build        # Typecheck + frontend production build
 npm test             # Vitest
+npm run lint         # ESLint
+npm run format       # Prettier
 npm run tauri build  # Production installer (NSIS)
 ```
 
@@ -113,19 +115,19 @@ npm run tauri build  # Production installer (NSIS)
 2. **English everywhere** — no Russian (or other) UI/error strings.
 3. **Security** — only allow strategy files inside the managed library; reject path traversal in ZIP extraction (`enclosed_name()`).
 4. **Windows commands** — service logic uses `sc`, `reg`, `tasklist`, `explorer`; keep error messages actionable.
-5. **Formatting** — frontend files in this repo are often compact single-line components; preserve that style unless refactoring a file for clarity.
+5. **Formatting** — use Prettier (`npm run format`) and ESLint (`npm run lint` / `npm run lint:fix`). Do not hand-format against the Prettier config.
 
 ## Common tasks
 
-| Task | Where to change |
-|------|-----------------|
-| New settings field | `types.rs`, `app.rs`, `zapretyd.ts`, `SettingsPage.tsx` |
-| New UI page | `src/pages/<name>/`, wire in `App.tsx` and `AppShell.tsx` |
-| Install/download logic | `library.rs` |
-| GitHub release handling | `releases.rs` |
-| Service behavior | `service.rs` |
-| User-visible errors | Rust `Err("...")` strings and React UI copy |
-| Bump app version | `package.json`, then sync `tauri.conf.json` and `Cargo.toml` |
+| Task                    | Where to change                                              |
+| ----------------------- | ------------------------------------------------------------ |
+| New settings field      | `types.rs`, `app.rs`, `zapretyd.ts`, `SettingsPage.tsx`      |
+| New UI page             | `src/pages/<name>/`, wire in `App.tsx` and `AppShell.tsx`    |
+| Install/download logic  | `library.rs`                                                 |
+| GitHub release handling | `releases.rs`                                                |
+| Service behavior        | `service.rs`                                                 |
+| User-visible errors     | Rust `Err("...")` strings and React UI copy                  |
+| Bump app version        | `package.json`, then sync `tauri.conf.json` and `Cargo.toml` |
 
 ## Testing
 

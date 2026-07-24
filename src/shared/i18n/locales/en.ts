@@ -52,7 +52,8 @@ export const en = {
   'service.stop': 'Stop',
   'service.removeService': 'Remove service',
   'service.confirmTitle': 'Replace the current service?',
-  'service.confirmBody': 'The current zapret service will be stopped, then the selected strategy will become the new auto-start service.',
+  'service.confirmBody':
+    'The current zapret service will be stopped, then the selected strategy will become the new auto-start service.',
   'service.cancel': 'Cancel',
   'service.replace': 'Replace',
 
@@ -63,10 +64,12 @@ export const en = {
   'settings.changeFolder': 'Change folder',
   'settings.autoCheckUpdates': 'Check for updates on launch and once per day',
   'settings.autoCheckHint': 'Checks run only while Zapretyd is open.',
-  'settings.githubInfo': 'Zapretyd downloads archives only from GitHub Releases of Flowseal/zapret-discord-youtube.',
+  'settings.githubInfo':
+    'Zapretyd downloads archives only from GitHub Releases of Flowseal/zapret-discord-youtube.',
 
   'libraryDialog.title': 'Where should zapret versions be stored?',
-  'libraryDialog.body': 'Choose a path without Cyrillic or special characters, for example {{path}}.',
+  'libraryDialog.body':
+    'Choose a path without Cyrillic or special characters, for example {{path}}.',
   'libraryDialog.folderLabel': 'Library folder',
   'libraryDialog.chooseFolder': 'Choose folder',
   'libraryDialog.save': 'Save folder',
@@ -94,7 +97,8 @@ export const en = {
   'error.service.createFailed': 'Failed to create zapret service',
   'error.service.invalidFileName': 'Invalid file name',
   'error.service.saveStrategyFailed': 'Failed to save the selected strategy',
-  'error.service.startFailed': 'Service was created but failed to start. Check WinDivert and the strategy.',
+  'error.service.startFailed':
+    'Service was created but failed to start. Check WinDivert and the strategy.',
   'error.service.stopFailed': 'Failed to stop zapret service',
   'error.service.removeFailed': 'Failed to remove zapret service',
 } as const;

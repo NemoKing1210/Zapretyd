@@ -44,7 +44,8 @@ export const ru: Record<TranslationKey, string> = {
   'service.detected': 'Служба zapret обнаружена',
   'service.notInstalled': 'Служба zapret не установлена',
   'service.title': 'Служба',
-  'service.adminWarning': 'Для изменения Windows-службы перезапустите приложение от имени администратора.',
+  'service.adminWarning':
+    'Для изменения Windows-службы перезапустите приложение от имени администратора.',
   'service.restart': 'Перезапустить',
   'service.assignStrategy': 'Назначить стратегию',
   'service.version': 'Версия',
@@ -54,7 +55,8 @@ export const ru: Record<TranslationKey, string> = {
   'service.stop': 'Остановить',
   'service.removeService': 'Удалить службу',
   'service.confirmTitle': 'Заменить текущую службу?',
-  'service.confirmBody': 'Текущая служба zapret будет остановлена, затем выбранная стратегия станет новой службой автозапуска.',
+  'service.confirmBody':
+    'Текущая служба zapret будет остановлена, затем выбранная стратегия станет новой службой автозапуска.',
   'service.cancel': 'Отмена',
   'service.replace': 'Заменить',
 
@@ -65,7 +67,8 @@ export const ru: Record<TranslationKey, string> = {
   'settings.changeFolder': 'Изменить папку',
   'settings.autoCheckUpdates': 'Проверять обновления при запуске и раз в сутки',
   'settings.autoCheckHint': 'Проверка выполняется только когда Zapretyd открыт.',
-  'settings.githubInfo': 'Zapretyd загружает архивы только из GitHub Releases проекта Flowseal/zapret-discord-youtube.',
+  'settings.githubInfo':
+    'Zapretyd загружает архивы только из GitHub Releases проекта Flowseal/zapret-discord-youtube.',
 
   'libraryDialog.title': 'Где хранить версии zapret?',
   'libraryDialog.body': 'Выберите путь без кириллицы и специальных символов, например {{path}}.',
@@ -85,7 +88,8 @@ export const ru: Record<TranslationKey, string> = {
   'error.release.fetchFailed': 'Не удалось получить релиз',
   'error.release.noZipAsset': 'В последнем релизе нет ZIP-архива для Windows',
 
-  'error.service.adminRequired': 'Перезапустите Zapretyd от имени администратора для управления службой',
+  'error.service.adminRequired':
+    'Перезапустите Zapretyd от имени администратора для управления службой',
   'error.service.versionLibraryNotFound': 'Библиотека версий не найдена',
   'error.service.strategyNotFound': 'Файл стратегии не найден',
   'error.service.managedStrategyOnly': 'Разрешены только стратегии из управляемой библиотеки',
@@ -96,7 +100,8 @@ export const ru: Record<TranslationKey, string> = {
   'error.service.createFailed': 'Не удалось создать службу zapret',
   'error.service.invalidFileName': 'Некорректное имя файла',
   'error.service.saveStrategyFailed': 'Не удалось сохранить выбранную стратегию',
-  'error.service.startFailed': 'Служба создана, но не запустилась. Проверьте WinDivert и стратегию.',
+  'error.service.startFailed':
+    'Служба создана, но не запустилась. Проверьте WinDivert и стратегию.',
   'error.service.stopFailed': 'Не удалось остановить службу zapret',
   'error.service.removeFailed': 'Не удалось удалить службу zapret',
 };

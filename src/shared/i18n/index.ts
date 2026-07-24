@@ -1,4 +1,12 @@
-import { createContext, createElement, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
+import {
+  createContext,
+  createElement,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+  type ReactNode,
+} from 'react';
 import { api } from '../api/zapretyd';
 import { en, type TranslationKey } from './locales/en';
 import { ru } from './locales/ru';
@@ -22,7 +30,11 @@ export function getLocale(): Locale {
   return currentLocale;
 }
 
-export function t(key: TranslationKey, params?: Record<string, string | number>, locale: Locale = currentLocale): string {
+export function t(
+  key: TranslationKey,
+  params?: Record<string, string | number>,
+  locale: Locale = currentLocale,
+): string {
   let text = catalogs[locale][key] ?? catalogs.en[key] ?? key;
   if (params) {
     for (const [name, value] of Object.entries(params)) {
@@ -55,7 +67,8 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    api.systemLocale()
+    api
+      .systemLocale()
       .then((systemLocale) => {
         const next = detectLocale(systemLocale);
         setLocale(next);
@@ -65,12 +78,19 @@ export function I18nProvider({ children }: { children: ReactNode }) {
       .finally(() => setReady(true));
   }, []);
 
-  const translate = useCallback((key: TranslationKey, params?: Record<string, string | number>) => t(key, params, locale), [locale]);
+  const translate = useCallback(
+    (key: TranslationKey, params?: Record<string, string | number>) => t(key, params, locale),
+    [locale],
+  );
   const translateErr = useCallback((error: string) => translateError(error, locale), [locale]);
 
   if (!ready) return null;
 
-  return createElement(I18nContext.Provider, { value: { locale, t: translate, translateError: translateErr } }, children);
+  return createElement(
+    I18nContext.Provider,
+    { value: { locale, t: translate, translateError: translateErr } },
+    children,
+  );
 }
 
 export function useTranslation() {

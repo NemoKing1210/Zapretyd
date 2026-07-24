@@ -36,13 +36,15 @@ C:\Zapret
 
 ## Scripts
 
-| Command | Description |
-|---------|-------------|
-| `npm run tauri dev` | Run the app in development mode |
+| Command               | Description                         |
+| --------------------- | ----------------------------------- |
+| `npm run tauri dev`   | Run the app in development mode     |
 | `npm run tauri build` | Build a production installer (NSIS) |
-| `npm run dev` | Start Vite dev server only |
-| `npm run build` | Typecheck and build the frontend |
-| `npm test` | Run frontend tests |
+| `npm run dev`         | Start Vite dev server only          |
+| `npm run build`       | Typecheck and build the frontend    |
+| `npm test`            | Run frontend tests                  |
+| `npm run lint`        | Lint the frontend with ESLint       |
+| `npm run format`      | Format the project with Prettier    |
 
 ## How it works
 
