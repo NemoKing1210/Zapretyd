@@ -1,4 +1,4 @@
-import { PlayArrowOutlined, SecurityOutlined } from '@mui/icons-material';
+import { DeleteOutline, PlayArrowOutlined, StopOutlined } from '@mui/icons-material';
 import {
   Alert,
   Box,
@@ -6,115 +6,430 @@ import {
   Card,
   CardContent,
   Chip,
-  Grid,
+  CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  FormControl,
+  InputAdornment,
+  InputLabel,
+  MenuItem,
+  Select,
+  Skeleton,
   Stack,
   Typography,
 } from '@mui/material';
-import type { ServiceStatus } from '../../../shared/api/zapretyd';
+import { useEffect, useState } from 'react';
+import type { InstalledVersion, ServiceStatus, StrategyInfo } from '../../../shared/api/zapretyd';
 import { useTranslation } from '../../../shared/i18n';
+import type { TranslationKey } from '../../../shared/i18n/locales/en';
+
+function StatusDot({ active, pulse }: { active: boolean; pulse?: boolean }) {
+  return (
+    <Box
+      aria-hidden
+      sx={{
+        width: 8,
+        height: 8,
+        borderRadius: '50%',
+        bgcolor: active ? 'success.main' : 'action.disabled',
+        flexShrink: 0,
+        ...(active && pulse
+          ? {
+              animation: 'zapretydPulse 1.6s ease-in-out infinite',
+              '@keyframes zapretydPulse': {
+                '0%, 100%': { opacity: 1, transform: 'scale(1)' },
+                '50%': { opacity: 0.55, transform: 'scale(0.85)' },
+              },
+              '@media (prefers-reduced-motion: reduce)': {
+                animation: 'none',
+              },
+            }
+          : {}),
+      }}
+    />
+  );
+}
+
+function StatusItem({
+  label,
+  value,
+  active,
+  pulse,
+}: {
+  label: string;
+  value: string;
+  active: boolean;
+  pulse?: boolean;
+}) {
+  return (
+    <Stack direction="row" spacing={1.25} alignItems="center" sx={{ minWidth: 0 }}>
+      <StatusDot active={active} pulse={pulse} />
+      <Box sx={{ minWidth: 0 }}>
+        <Typography variant="caption" color="text.secondary" display="block" noWrap>
+          {label}
+        </Typography>
+        <Typography variant="body2" fontWeight={600} noWrap>
+          {value}
+        </Typography>
+      </Box>
+    </Stack>
+  );
+}
 
 export function OverviewPage({
   status,
-  onService,
+  versions,
+  serviceBusy,
+  loadStrategies,
+  onActivate,
+  onStop,
+  onRemove,
+  onAdmin,
+  onStrategiesError,
 }: {
   status?: ServiceStatus;
-  onService: () => void;
+  versions: InstalledVersion[];
+  serviceBusy: boolean;
+  loadStrategies: (tag: string) => Promise<StrategyInfo[]>;
+  onActivate: (strategy: StrategyInfo) => Promise<void>;
+  onStop: () => void;
+  onRemove: () => void;
+  onAdmin: () => void;
+  onStrategiesError: (cause: unknown) => void;
 }) {
   const { t } = useTranslation();
-  const running = status?.serviceRunning && status.winwsRunning;
+  const [version, setVersion] = useState('');
+  const [strategies, setStrategies] = useState<StrategyInfo[]>([]);
+  const [strategy, setStrategy] = useState('');
+  const [confirm, setConfirm] = useState(false);
+  const [strategiesLoading, setStrategiesLoading] = useState(false);
+
+  useEffect(() => {
+    if (!version) {
+      setStrategies([]);
+      setStrategiesLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setStrategiesLoading(true);
+    loadStrategies(version)
+      .then((next) => {
+        if (!cancelled) setStrategies(next);
+      })
+      .catch((cause) => {
+        if (!cancelled) {
+          setStrategies([]);
+          onStrategiesError(cause);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setStrategiesLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [version, loadStrategies, onStrategiesError]);
+
+  const picked = strategies.find((item) => item.path === strategy);
+  const running = Boolean(status?.serviceRunning && status.winwsRunning);
+  const statusReady = status !== undefined;
+  const message = status?.messageCode ? t(status.messageCode as TranslationKey) : '';
+
   return (
     <Stack spacing={3}>
       <Box>
         <Typography variant="h3">{t('overview.title')}</Typography>
         <Typography color="text.secondary" mt={1}>
-          {t('overview.subtitle')}
+          {statusReady ? message || t('overview.subtitle') : t('overview.subtitle')}
         </Typography>
       </Box>
+
       <Card
         sx={{
           bgcolor: running ? 'primary.main' : 'background.paper',
           color: running ? 'primary.contrastText' : 'text.primary',
+          transition: (theme) =>
+            theme.transitions.create(['background-color', 'color'], { duration: 280 }),
         }}
       >
         <CardContent sx={{ p: 4 }}>
-          <Stack
-            direction={{ xs: 'column', sm: 'row' }}
-            alignItems="center"
-            justifyContent="space-between"
-            spacing={3}
-          >
-            <Box>
-              <Chip
-                label={running ? t('overview.active') : t('overview.inactive')}
-                color={running ? 'success' : 'default'}
-                sx={{ mb: 2 }}
-              />
-              <Typography variant="h4">
-                {running ? t('overview.running') : t('overview.stopped')}
-              </Typography>
-              <Typography sx={{ opacity: 0.8, mt: 1 }}>
-                {status?.activeStrategy
-                  ? t('overview.strategy', { name: status.activeStrategy })
-                  : t('overview.pickStrategyHint')}
-              </Typography>
-            </Box>
-            <SecurityOutlined sx={{ fontSize: 92, opacity: 0.75 }} />
-          </Stack>
+          {!statusReady ? (
+            <Stack spacing={2}>
+              <Skeleton variant="rounded" width={88} height={28} />
+              <Skeleton variant="text" width="55%" height={40} />
+              <Skeleton variant="text" width="40%" />
+              <Stack direction="row" spacing={1.5} mt={1}>
+                <Skeleton variant="rounded" width={120} height={36} />
+                <Skeleton variant="rounded" width={140} height={36} />
+              </Stack>
+            </Stack>
+          ) : (
+            <Stack
+              direction={{ xs: 'column', sm: 'row' }}
+              alignItems={{ xs: 'stretch', sm: 'center' }}
+              justifyContent="space-between"
+              spacing={3}
+            >
+              <Box sx={{ minWidth: 0, flex: 1 }}>
+                <Chip
+                  size="small"
+                  label={running ? t('overview.active') : t('overview.inactive')}
+                  color={running ? 'success' : 'default'}
+                  sx={{
+                    mb: 2,
+                    ...(running
+                      ? { bgcolor: 'rgba(255,255,255,0.22)', color: 'inherit' }
+                      : {}),
+                  }}
+                />
+                <Typography variant="h4">
+                  {running ? t('overview.running') : t('overview.stopped')}
+                </Typography>
+                <Typography sx={{ opacity: 0.85, mt: 1 }}>
+                  {status.activeStrategy
+                    ? t('overview.strategy', { name: status.activeStrategy })
+                    : t('overview.pickStrategyHint')}
+                </Typography>
+                <Stack direction="row" spacing={1.5} mt={3} flexWrap="wrap" useFlexGap>
+                  <Button
+                    variant="outlined"
+                    color={running ? 'inherit' : 'warning'}
+                    startIcon={
+                      serviceBusy ? <CircularProgress size={18} color="inherit" /> : <StopOutlined />
+                    }
+                    disabled={!status.serviceRunning || !status.isAdmin || serviceBusy}
+                    onClick={onStop}
+                    sx={
+                      running
+                        ? {
+                            borderColor: 'rgba(255,255,255,0.45)',
+                            color: 'inherit',
+                            '&:hover': {
+                              borderColor: 'rgba(255,255,255,0.7)',
+                              bgcolor: 'rgba(255,255,255,0.08)',
+                            },
+                          }
+                        : undefined
+                    }
+                  >
+                    {t('overview.stop')}
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    color={running ? 'inherit' : 'error'}
+                    startIcon={
+                      serviceBusy ? (
+                        <CircularProgress size={18} color="inherit" />
+                      ) : (
+                        <DeleteOutline />
+                      )
+                    }
+                    disabled={!status.serviceExists || !status.isAdmin || serviceBusy}
+                    onClick={onRemove}
+                    sx={
+                      running
+                        ? {
+                            borderColor: 'rgba(255,255,255,0.45)',
+                            color: 'inherit',
+                            '&:hover': {
+                              borderColor: 'rgba(255,255,255,0.7)',
+                              bgcolor: 'rgba(255,255,255,0.08)',
+                            },
+                          }
+                        : undefined
+                    }
+                  >
+                    {t('overview.removeService')}
+                  </Button>
+                </Stack>
+              </Box>
+            </Stack>
+          )}
         </CardContent>
       </Card>
-      <Grid container spacing={2}>
-        <Grid size={{ xs: 12, md: 4 }}>
-          <Card>
-            <CardContent>
-              <Typography color="text.secondary">{t('overview.serviceCard')}</Typography>
-              <Typography variant="h5" mt={1}>
-                {status?.serviceRunning ? t('overview.runningState') : t('overview.stoppedState')}
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid size={{ xs: 12, md: 4 }}>
-          <Card>
-            <CardContent>
-              <Typography color="text.secondary">{t('overview.windivert')}</Typography>
-              <Typography variant="h5" mt={1}>
-                {status?.windivertRunning
-                  ? t('overview.windivertActive')
-                  : t('overview.windivertInactive')}
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid size={{ xs: 12, md: 4 }}>
-          <Card>
-            <CardContent>
-              <Typography color="text.secondary">{t('overview.adminRights')}</Typography>
-              <Typography variant="h5" mt={1}>
-                {status?.isAdmin ? t('overview.adminGranted') : t('overview.adminMissing')}
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
-      {!status?.isAdmin && (
+
+      <Card>
+        <CardContent sx={{ py: 2, '&:last-child': { pb: 2 } }}>
+          {!statusReady ? (
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={3}>
+              {[0, 1, 2, 3].map((key) => (
+                <Skeleton key={key} variant="rounded" height={40} sx={{ flex: 1 }} />
+              ))}
+            </Stack>
+          ) : (
+            <Stack
+              direction={{ xs: 'column', sm: 'row' }}
+              spacing={{ xs: 2, sm: 3 }}
+              divider={
+                <Box
+                  sx={{
+                    display: { xs: 'none', sm: 'block' },
+                    width: '1px',
+                    alignSelf: 'stretch',
+                    bgcolor: 'divider',
+                  }}
+                />
+              }
+              justifyContent="space-between"
+            >
+              <StatusItem
+                label={t('overview.serviceCard')}
+                value={
+                  status.serviceRunning ? t('overview.runningState') : t('overview.stoppedState')
+                }
+                active={status.serviceRunning}
+                pulse={status.serviceRunning}
+              />
+              <StatusItem
+                label={t('overview.winws')}
+                value={status.winwsRunning ? t('overview.runningState') : t('overview.stoppedState')}
+                active={status.winwsRunning}
+                pulse={status.winwsRunning}
+              />
+              <StatusItem
+                label={t('overview.windivert')}
+                value={
+                  status.windivertRunning
+                    ? t('overview.windivertActive')
+                    : t('overview.windivertInactive')
+                }
+                active={status.windivertRunning}
+                pulse={status.windivertRunning}
+              />
+              <StatusItem
+                label={t('overview.adminRights')}
+                value={status.isAdmin ? t('overview.adminGranted') : t('overview.adminMissing')}
+                active={Boolean(status.isAdmin)}
+              />
+            </Stack>
+          )}
+        </CardContent>
+      </Card>
+
+      {statusReady && !status.isAdmin && (
         <Alert
           severity="warning"
           action={
-            <Button color="inherit" size="small" onClick={onService}>
-              {t('overview.openService')}
+            <Button
+              color="inherit"
+              size="small"
+              disabled={serviceBusy}
+              startIcon={serviceBusy ? <CircularProgress size={14} color="inherit" /> : undefined}
+              onClick={onAdmin}
+            >
+              {t('overview.restart')}
             </Button>
           }
         >
           {t('overview.adminWarning')}
         </Alert>
       )}
-      <Button
-        startIcon={<PlayArrowOutlined />}
-        sx={{ alignSelf: 'flex-start' }}
-        onClick={onService}
-      >
-        {t('overview.pickStrategy')}
-      </Button>
+
+      <Card>
+        <CardContent>
+          <Stack spacing={2}>
+            <Box>
+              <Typography variant="overline" color="text.secondary">
+                {t('overview.assignStrategy')}
+              </Typography>
+              <Typography color="text.secondary" variant="body2" sx={{ mt: 0.5 }}>
+                {t('overview.assignStrategyHint')}
+              </Typography>
+            </Box>
+            <FormControl fullWidth disabled={serviceBusy}>
+              <InputLabel>{t('overview.version')}</InputLabel>
+              <Select
+                label={t('overview.version')}
+                value={version}
+                onChange={(event) => {
+                  setVersion(String(event.target.value));
+                  setStrategy('');
+                }}
+              >
+                <MenuItem value="">
+                  <em>{t('overview.selectVersion')}</em>
+                </MenuItem>
+                {versions.map((item, index) => (
+                  <MenuItem key={item.tag} value={item.tag}>
+                    <Stack
+                      direction="row"
+                      spacing={1}
+                      alignItems="center"
+                      justifyContent="space-between"
+                      sx={{ width: '100%' }}
+                    >
+                      <Typography component="span" variant="body1">
+                        {item.tag}
+                      </Typography>
+                      {index === 0 && (
+                        <Chip size="small" color="primary" label={t('overview.latestVersion')} />
+                      )}
+                    </Stack>
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            <FormControl fullWidth disabled={!version || strategiesLoading || serviceBusy}>
+              <InputLabel>{t('overview.strategyLabel')}</InputLabel>
+              <Select
+                label={t('overview.strategyLabel')}
+                value={strategy}
+                onChange={(event) => setStrategy(String(event.target.value))}
+                endAdornment={
+                  strategiesLoading ? (
+                    <InputAdornment position="end" sx={{ mr: 2 }}>
+                      <CircularProgress size={18} />
+                    </InputAdornment>
+                  ) : undefined
+                }
+              >
+                {strategies.map((item) => (
+                  <MenuItem key={item.path} value={item.path}>
+                    {item.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            <Button
+              startIcon={
+                serviceBusy ? (
+                  <CircularProgress size={18} color="inherit" />
+                ) : (
+                  <PlayArrowOutlined />
+                )
+              }
+              disabled={!picked || !status?.isAdmin || serviceBusy || strategiesLoading}
+              onClick={() => setConfirm(true)}
+              sx={{ alignSelf: 'flex-start' }}
+            >
+              {t('overview.replaceAndStart')}
+            </Button>
+          </Stack>
+        </CardContent>
+      </Card>
+
+      <Dialog open={confirm} onClose={() => !serviceBusy && setConfirm(false)}>
+        <DialogTitle>{t('overview.confirmTitle')}</DialogTitle>
+        <DialogContent>{t('overview.confirmBody')}</DialogContent>
+        <DialogActions>
+          <Button variant="text" disabled={serviceBusy} onClick={() => setConfirm(false)}>
+            {t('overview.cancel')}
+          </Button>
+          <Button
+            disabled={serviceBusy || !picked}
+            startIcon={serviceBusy ? <CircularProgress size={18} color="inherit" /> : undefined}
+            onClick={async () => {
+              if (!picked) return;
+              await onActivate(picked);
+              setConfirm(false);
+            }}
+          >
+            {t('overview.replace')}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Stack>
   );
 }

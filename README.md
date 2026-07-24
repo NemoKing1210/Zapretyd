@@ -8,8 +8,7 @@ Zapretyd downloads official GitHub releases, keeps each version in an isolated f
 
 - **Release management** — check for updates, download, and install the latest zapret ZIP from GitHub
 - **Version library** — store multiple releases side by side under a single folder
-- **Service control** — pick a strategy, create/replace the `zapret` Windows service, start, stop, or remove it
-- **Status dashboard** — see service, WinDivert, and `winws.exe` state at a glance
+- **Overview** — see service, WinDivert, and `winws.exe` status, then pick a strategy and create, start, stop, or remove the `zapret` Windows service
 - **Safe paths** — library location must use ASCII characters only (e.g. `C:\Zapret`)
 
 ## Requirements
@@ -50,7 +49,7 @@ C:\Zapret
 
 1. **Library** — releases are extracted to `<library>\versions\<tag>\`
 2. **Strategies** — each version ships with `.bat` strategy files; Zapretyd lists them per version
-3. **Service** — when you activate a strategy, Zapretyd parses `winws.exe` arguments from the batch file, registers the `zapret` service, and starts it
+3. **Overview** — when you activate a strategy, Zapretyd parses `winws.exe` arguments from the batch file, registers the `zapret` service, and starts it
 4. **Updates** — the app queries GitHub Releases for `Flowseal/zapret-discord-youtube` and can auto-check once per day while open
 
 ## Project structure

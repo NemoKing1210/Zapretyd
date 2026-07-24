@@ -6,7 +6,6 @@ import {
   DashboardOutlined,
   FolderOpenOutlined,
   SettingsOutlined,
-  StorageOutlined,
 } from '@mui/icons-material';
 import {
   AppBar,
@@ -33,7 +32,6 @@ const SIDEBAR_COLLAPSED_KEY = 'zapretyd.sidebarCollapsed';
 const navigation = [
   { key: 'overview', labelKey: 'nav.overview' as const, icon: <DashboardOutlined /> },
   { key: 'versions', labelKey: 'nav.versions' as const, icon: <FolderOpenOutlined /> },
-  { key: 'service', labelKey: 'nav.service' as const, icon: <StorageOutlined /> },
   { key: 'settings', labelKey: 'nav.settings' as const, icon: <SettingsOutlined /> },
 ];
 
@@ -101,7 +99,7 @@ export function AppShell({
             <Chip
               size="small"
               clickable
-              onClick={() => onPage('service')}
+              onClick={() => onPage('overview')}
               color={running ? 'success' : 'default'}
               variant={running ? 'filled' : 'outlined'}
               label={running ? t('shell.serviceRunning') : t('shell.serviceStopped')}
@@ -110,7 +108,7 @@ export function AppShell({
               <Chip
                 size="small"
                 clickable
-                onClick={() => onPage('service')}
+                onClick={() => onPage('overview')}
                 variant="outlined"
                 label={t('shell.strategy', { name: status.activeStrategy })}
                 sx={{ maxWidth: 280 }}
@@ -119,7 +117,7 @@ export function AppShell({
             <Chip
               size="small"
               clickable
-              onClick={() => onPage('service')}
+              onClick={() => onPage('overview')}
               icon={<AdminPanelSettingsOutlined />}
               color={status?.isAdmin ? 'secondary' : 'warning'}
               variant="outlined"

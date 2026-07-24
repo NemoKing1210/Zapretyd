@@ -3,7 +3,6 @@ import type { TranslationKey } from './en';
 export const ru: Record<TranslationKey, string> = {
   'nav.overview': 'Обзор',
   'nav.versions': 'Версии',
-  'nav.service': 'Служба',
   'nav.settings': 'Настройки',
   'app.subtitle': 'менеджер zapret',
   'shell.serviceRunning': 'Служба работает',
@@ -16,7 +15,7 @@ export const ru: Record<TranslationKey, string> = {
   'shell.expandSidebar': 'Развернуть панель',
 
   'overview.title': 'Состояние обхода',
-  'overview.subtitle': 'Управляйте совместимой службой zapret и установленными стратегиями.',
+  'overview.subtitle': 'Смотрите статус и управляйте службой zapret на одном экране.',
   'overview.active': 'АКТИВЕН',
   'overview.inactive': 'НЕ АКТИВЕН',
   'overview.running': 'Zapret запущен',
@@ -24,6 +23,7 @@ export const ru: Record<TranslationKey, string> = {
   'overview.strategy': 'Стратегия: {{name}}',
   'overview.pickStrategyHint': 'Выберите стратегию, чтобы создать службу.',
   'overview.serviceCard': 'Служба zapret',
+  'overview.winws': 'winws',
   'overview.runningState': 'Работает',
   'overview.stoppedState': 'Остановлена',
   'overview.windivert': 'WinDivert',
@@ -32,9 +32,24 @@ export const ru: Record<TranslationKey, string> = {
   'overview.adminRights': 'Права администратора',
   'overview.adminGranted': 'Получены',
   'overview.adminMissing': 'Не получены',
-  'overview.adminWarning': 'Для запуска и остановки службы требуются права администратора.',
-  'overview.openService': 'Открыть службу',
-  'overview.pickStrategy': 'Выбрать стратегию',
+  'overview.adminWarning':
+    'Для изменения Windows-службы перезапустите приложение от имени администратора.',
+  'overview.restart': 'Перезапустить',
+  'overview.assignStrategy': 'Назначить стратегию',
+  'overview.assignStrategyHint':
+    'Выберите установленную версию и стратегию, затем замените и запустите службу.',
+  'overview.version': 'Версия',
+  'overview.selectVersion': 'Выберите версию',
+  'overview.latestVersion': 'Последняя',
+  'overview.strategyLabel': 'Стратегия',
+  'overview.replaceAndStart': 'Заменить и запустить службу',
+  'overview.stop': 'Остановить',
+  'overview.removeService': 'Удалить службу',
+  'overview.confirmTitle': 'Заменить текущую службу?',
+  'overview.confirmBody':
+    'Текущая служба zapret будет остановлена, затем выбранная стратегия станет новой службой автозапуска.',
+  'overview.cancel': 'Отмена',
+  'overview.replace': 'Заменить',
 
   'versions.title': 'Версии',
   'versions.subtitle': 'Каждый релиз хранится изолированно в своей папке.',
@@ -51,22 +66,6 @@ export const ru: Record<TranslationKey, string> = {
 
   'service.detected': 'Служба zapret обнаружена',
   'service.notInstalled': 'Служба zapret не установлена',
-  'service.title': 'Служба',
-  'service.adminWarning':
-    'Для изменения Windows-службы перезапустите приложение от имени администратора.',
-  'service.restart': 'Перезапустить',
-  'service.assignStrategy': 'Назначить стратегию',
-  'service.version': 'Версия',
-  'service.selectVersion': 'Выберите версию',
-  'service.strategy': 'Стратегия',
-  'service.replaceAndStart': 'Заменить и запустить службу',
-  'service.stop': 'Остановить',
-  'service.removeService': 'Удалить службу',
-  'service.confirmTitle': 'Заменить текущую службу?',
-  'service.confirmBody':
-    'Текущая служба zapret будет остановлена, затем выбранная стратегия станет новой службой автозапуска.',
-  'service.cancel': 'Отмена',
-  'service.replace': 'Заменить',
 
   'settings.title': 'Настройки',
   'settings.subtitle': 'Оформление, папка библиотеки, обновления и сведения о Zapretyd.',

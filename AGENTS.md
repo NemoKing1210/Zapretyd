@@ -55,7 +55,7 @@ Documentation (`README.md`, `AGENTS.md`, `CLAUDE.md`) stays in English.
 ```
 src/                    React frontend (Feature-Sliced Design–style folders)
   app/                  App shell, theme, root component
-  pages/                Route-level screens (overview, versions, service, settings)
+  pages/                Route-level screens (overview, versions, settings)
   widgets/              Shared layout (AppShell)
   features/             Focused UI flows (library path dialog)
   shared/               API client, formatting helpers
@@ -90,6 +90,7 @@ src-tauri/              Rust backend
 - Service name: `zapret`
 - Activation parses `winws.exe` arguments from a strategy `.bat`, creates the service, stores the strategy filename in registry (`zapret-discord-youtube` value), and starts the service.
 - Admin rights are required for create/start/stop/delete operations. The UI surfaces this and offers relaunch-as-admin.
+- Status and service controls live on the Overview page (there is no separate Service page).
 
 ### Releases
 

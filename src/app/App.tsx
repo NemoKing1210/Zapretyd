@@ -16,7 +16,6 @@ import { AppShell, type PageKey } from '../widgets/app-shell/ui/AppShell';
 import { LibraryPathDialog } from '../features/library-path/ui/LibraryPathDialog';
 import { OverviewPage } from '../pages/overview/ui/OverviewPage';
 import { VersionsPage } from '../pages/versions/ui/VersionsPage';
-import { ServicePage } from '../pages/service/ui/ServicePage';
 import { SettingsPage } from '../pages/settings/ui/SettingsPage';
 
 export function App() {
@@ -27,6 +26,7 @@ export function App() {
   const [status, setStatus] = useState<ServiceStatus>();
   const [latest, setLatest] = useState<ReleaseInfo>();
   const [busy, setBusy] = useState(false);
+  const [serviceBusy, setServiceBusy] = useState(false);
   const [error, setError] = useState('');
   const showError = useCallback(
     (cause: unknown) => setError(translateError(String(cause))),
@@ -84,7 +84,7 @@ export function App() {
       setBusy(false);
     }
   };
-  const serviceAction = async (action: () => Promise<unknown>) => {
+  const runAction = async (action: () => Promise<unknown>) => {
     try {
       setError('');
       await action();
@@ -93,10 +93,28 @@ export function App() {
       showError(cause);
     }
   };
+  const serviceAction = async (action: () => Promise<unknown>) => {
+    setServiceBusy(true);
+    try {
+      await runAction(action);
+    } finally {
+      setServiceBusy(false);
+    }
+  };
   if (!settings) return null;
   const content =
     page === 'overview' ? (
-      <OverviewPage status={status} onService={() => setPage('service')} />
+      <OverviewPage
+        status={status}
+        versions={versions}
+        serviceBusy={serviceBusy}
+        loadStrategies={api.strategies}
+        onActivate={(strategy) => serviceAction(() => api.activate(strategy))}
+        onStop={() => serviceAction(api.stop)}
+        onRemove={() => serviceAction(api.removeService)}
+        onAdmin={() => serviceAction(api.relaunchAsAdmin)}
+        onStrategiesError={showError}
+      />
     ) : page === 'versions' ? (
       <VersionsPage
         versions={versions}
@@ -105,18 +123,8 @@ export function App() {
         error={error}
         onCheck={check}
         onInstall={install}
-        onRemove={(tag) => serviceAction(() => api.removeVersion(tag))}
-        onOpen={(path) => serviceAction(() => api.openDirectory(path))}
-      />
-    ) : page === 'service' ? (
-      <ServicePage
-        status={status}
-        versions={versions}
-        loadStrategies={api.strategies}
-        onActivate={(strategy) => serviceAction(() => api.activate(strategy))}
-        onStop={() => serviceAction(api.stop)}
-        onRemove={() => serviceAction(api.removeService)}
-        onAdmin={() => serviceAction(api.relaunchAsAdmin)}
+        onRemove={(tag) => runAction(() => api.removeVersion(tag))}
+        onOpen={(path) => runAction(() => api.openDirectory(path))}
       />
     ) : (
       <SettingsPage settings={settings} onSave={saveSettings} />

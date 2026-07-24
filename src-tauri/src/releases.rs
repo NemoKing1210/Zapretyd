@@ -11,7 +11,7 @@ const LATEST_URL: &str =
 #[tauri::command]
 pub async fn check_latest_release(state: State<'_, AppState>) -> Result<ReleaseInfo, String> {
     let client = reqwest::Client::builder()
-        .user_agent("Zapretyd/0.3")
+        .user_agent("Zapretyd/0.4")
         .build()
         .map_err(|e| e.to_string())?;
     let response = client
