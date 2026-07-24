@@ -26,6 +26,7 @@ pub fn run() {
             app::relaunch_as_admin,
             window_chrome::sync_window_chrome,
             releases::check_latest_release,
+            releases::refresh_release_catalog,
             releases::list_releases,
             library::get_default_library_path,
             library::list_installed_versions,

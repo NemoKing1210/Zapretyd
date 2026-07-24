@@ -5,16 +5,22 @@ export type ThemeMode = 'system' | 'light' | 'dark';
 
 export type AppSettings = {
   libraryPath?: string;
-  autoCheckUpdates: boolean;
   lastUpdateCheck?: string;
   latestEtag?: string;
   theme: string;
   locale?: string;
+  cachedLatestTag?: string;
+  cachedReleaseCount?: number;
 };
 
 export function normalizeThemeMode(theme: string | undefined): ThemeMode {
   return theme === 'light' || theme === 'dark' || theme === 'system' ? theme : 'system';
 }
+export type ReleaseCatalog = {
+  latestTag: string;
+  releaseCount: number;
+  fromCache: boolean;
+};
 export type ReleaseInfo = {
   tag: string;
   name: string;
@@ -58,6 +64,7 @@ export const api = {
   isAdmin: () => invoke<boolean>('is_administrator'),
   relaunchAsAdmin: () => invoke<void>('relaunch_as_admin'),
   latest: () => invoke<ReleaseInfo>('check_latest_release'),
+  refreshReleaseCatalog: () => invoke<ReleaseCatalog>('refresh_release_catalog'),
   listReleases: (page: number) => invoke<ReleasePage>('list_releases', { page }),
   versions: () => invoke<InstalledVersion[]>('list_installed_versions'),
   install: (release: ReleaseInfo, force = false) =>

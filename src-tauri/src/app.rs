@@ -15,7 +15,6 @@ impl AppState {
             .ok()
             .and_then(|s| serde_json::from_str(&s).ok())
             .unwrap_or(AppSettings {
-                auto_check_updates: true,
                 theme: "system".into(),
                 locale: "system".into(),
                 ..Default::default()

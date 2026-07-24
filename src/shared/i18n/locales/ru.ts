@@ -56,6 +56,8 @@ export const ru: Record<TranslationKey, string> = {
   'versions.subtitle': 'Каждый релиз хранится изолированно в своей папке.',
   'versions.tabInstalled': 'Установленные',
   'versions.tabAll': 'Все версии',
+  'versions.offline':
+    'Нет доступа к интернету. Без сети нельзя скачать, переустановить или подгрузить релизы.',
   'versions.published': 'Опубликован {{date}} · {{size}}',
   'versions.download': 'Скачать',
   'versions.reinstall': 'Переустановить',
@@ -103,9 +105,7 @@ export const ru: Record<TranslationKey, string> = {
   'settings.useAppFolder': 'Хранить в папке приложения',
   'settings.updatesTitle': 'Обновления',
   'settings.updatesHint':
-    'Проверка релизов zapret идёт только из официального репозитория на GitHub.',
-  'settings.autoCheckUpdates': 'Проверять обновления при запуске и раз в сутки',
-  'settings.autoCheckHint': 'Проверка выполняется только когда Zapretyd открыт.',
+    'При запуске Zapretyd проверяет официальный репозиторий GitHub на наличие релизов zapret.',
   'settings.upstreamRepo': 'Исходный репозиторий',
   'settings.aboutTitle': 'О проекте',
   'settings.aboutBody':

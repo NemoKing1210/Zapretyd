@@ -31,6 +31,8 @@ type ConfirmAction =
 export function AllReleasesList({
   releases,
   versions,
+  latestTag,
+  online,
   loading,
   loadingMore,
   hasMore,
@@ -42,6 +44,8 @@ export function AllReleasesList({
 }: {
   releases: ReleaseInfo[];
   versions: InstalledVersion[];
+  latestTag?: string;
+  online: boolean;
   loading: boolean;
   loadingMore: boolean;
   hasMore: boolean;
@@ -136,6 +140,9 @@ export function AllReleasesList({
                 <Box sx={{ minWidth: 0 }}>
                   <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
                     <Typography variant="h6">{release.tag}</Typography>
+                    {latestTag && release.tag === latestTag && (
+                      <Chip label={t('versions.latest')} color="primary" size="small" />
+                    )}
                     {release.prerelease && (
                       <Chip label={t('versions.prerelease')} size="small" variant="outlined" />
                     )}
@@ -163,7 +170,7 @@ export function AllReleasesList({
                           <RefreshOutlined />
                         )
                       }
-                      disabled={busy || installed.isActive}
+                      disabled={busy || installed.isActive || !online}
                       onClick={() => openConfirm({ type: 'reinstall', release })}
                     >
                       {t('versions.reinstall')}
@@ -186,7 +193,7 @@ export function AllReleasesList({
                         <DownloadOutlined />
                       )
                     }
-                    disabled={busy}
+                    disabled={busy || !online}
                     onClick={() => onInstall(release)}
                     sx={{ flexShrink: 0 }}
                   >
@@ -221,7 +228,7 @@ export function AllReleasesList({
         <Box display="flex" justifyContent="center" pt={1}>
           <Button
             variant="outlined"
-            disabled={loadingMore || busy}
+            disabled={loadingMore || busy || !online}
             startIcon={loadingMore ? <CircularProgress size={18} /> : undefined}
             onClick={onLoadMore}
           >

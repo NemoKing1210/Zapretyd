@@ -54,6 +54,8 @@ export const en = {
   'versions.subtitle': 'Each release is stored in its own isolated folder.',
   'versions.tabInstalled': 'Installed',
   'versions.tabAll': 'All versions',
+  'versions.offline':
+    'No internet connection. You cannot download, reinstall, or load more releases until you are back online.',
   'versions.published': 'Published {{date}} · {{size}}',
   'versions.download': 'Download',
   'versions.reinstall': 'Reinstall',
@@ -100,9 +102,8 @@ export const en = {
   'settings.changeFolder': 'Change folder',
   'settings.useAppFolder': 'Store in the app folder',
   'settings.updatesTitle': 'Updates',
-  'settings.updatesHint': 'Zapret release checks use the official GitHub repository only.',
-  'settings.autoCheckUpdates': 'Check for updates on launch and once per day',
-  'settings.autoCheckHint': 'Checks run only while Zapretyd is open.',
+  'settings.updatesHint':
+    'Zapretyd checks the official GitHub repository for zapret releases on launch.',
   'settings.upstreamRepo': 'Source repository',
   'settings.aboutTitle': 'About',
   'settings.aboutBody':

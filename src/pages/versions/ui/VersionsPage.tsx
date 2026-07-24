@@ -22,6 +22,9 @@ type ViewMode = 'installed' | 'all';
 
 export function VersionsPage({
   versions,
+  latestTag,
+  releaseCount,
+  online,
   busy,
   error,
   installingTag,
@@ -30,6 +33,9 @@ export function VersionsPage({
   onOpen,
 }: {
   versions: InstalledVersion[];
+  latestTag?: string;
+  releaseCount?: number;
+  online: boolean;
   busy: boolean;
   error?: string;
   installingTag?: string;
@@ -69,15 +75,12 @@ export function VersionsPage({
   );
 
   useEffect(() => {
-    if (view !== 'all' || loadedOnce || loading) return;
+    if (view !== 'all' || loadedOnce || loading || !online) return;
     void loadPage(1, false);
-  }, [view, loadedOnce, loading, loadPage]);
+  }, [view, loadedOnce, loading, loadPage, online]);
 
-  const allCountLabel = loadedOnce
-    ? hasMore
-      ? `${releases.length}+`
-      : String(releases.length)
-    : '…';
+  const allCountLabel =
+    releaseCount !== undefined ? String(releaseCount) : loadedOnce ? String(releases.length) : '…';
 
   return (
     <Stack spacing={3}>
@@ -87,6 +90,7 @@ export function VersionsPage({
           {t('versions.subtitle')}
         </Typography>
       </Box>
+      {!online && <Alert severity="warning">{t('versions.offline')}</Alert>}
       <ToggleButtonGroup
         exclusive
         color="primary"
@@ -114,6 +118,7 @@ export function VersionsPage({
         {view === 'installed' ? (
           <InstalledVersionsList
             versions={versions}
+            latestTag={latestTag}
             onRemove={onRemove}
             onOpen={onOpen}
             onBrowseAll={() => setView('all')}
@@ -122,7 +127,9 @@ export function VersionsPage({
           <AllReleasesList
             releases={releases}
             versions={versions}
-            loading={loading || (!loadedOnce && !listError)}
+            latestTag={latestTag}
+            online={online}
+            loading={online && (loading || (!loadedOnce && !listError))}
             loadingMore={loadingMore}
             hasMore={hasMore}
             error={listError || error}

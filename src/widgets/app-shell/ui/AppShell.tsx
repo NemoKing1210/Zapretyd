@@ -11,6 +11,7 @@ import {
 } from '@mui/icons-material';
 import {
   AppBar,
+  Badge,
   Box,
   Chip,
   Drawer,
@@ -51,11 +52,13 @@ export function AppShell({
   page,
   onPage,
   status,
+  installedCount = 0,
   children,
 }: {
   page: PageKey;
   onPage: (page: PageKey) => void;
   status?: ServiceStatus;
+  installedCount?: number;
   children: React.ReactNode;
 }) {
   const { t } = useTranslation();
@@ -202,6 +205,7 @@ export function AppShell({
           <List disablePadding sx={{ px: 0.5 }}>
             {navigation.map((item) => {
               const label = t(item.labelKey);
+              const showVersionsBadge = item.key === 'versions' && installedCount > 0;
               const button = (
                 <ListItemButton
                   key={item.key}
@@ -223,9 +227,35 @@ export function AppShell({
                       color: 'inherit',
                     }}
                   >
-                    {item.icon}
+                    {collapsed && showVersionsBadge ? (
+                      <Badge badgeContent={installedCount} color="primary" max={99}>
+                        {item.icon}
+                      </Badge>
+                    ) : (
+                      item.icon
+                    )}
                   </ListItemIcon>
-                  {!collapsed && <ListItemText primary={label} sx={{ minWidth: 0 }} />}
+                  {!collapsed && (
+                    <ListItemText
+                      primary={
+                        showVersionsBadge ? (
+                          <Stack direction="row" alignItems="center" spacing={1} component="span">
+                            <Box component="span" sx={{ minWidth: 0 }}>
+                              {label}
+                            </Box>
+                            <Chip
+                              size="small"
+                              label={installedCount}
+                              sx={{ height: 22, pointerEvents: 'none' }}
+                            />
+                          </Stack>
+                        ) : (
+                          label
+                        )
+                      }
+                      sx={{ minWidth: 0 }}
+                    />
+                  )}
                 </ListItemButton>
               );
 

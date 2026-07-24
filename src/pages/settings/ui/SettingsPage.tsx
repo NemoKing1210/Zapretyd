@@ -246,21 +246,6 @@ export function SettingsPage({
       </SettingsSection>
 
       <SettingsSection title={t('settings.updatesTitle')} hint={t('settings.updatesHint')}>
-        <FormControlLabel
-          control={
-            <Switch
-              checked={settings.autoCheckUpdates}
-              onChange={(event) =>
-                void onSave({ ...settings, autoCheckUpdates: event.target.checked })
-              }
-            />
-          }
-          label={t('settings.autoCheckUpdates')}
-          sx={{ display: 'flex', alignItems: 'flex-start', mr: 0 }}
-        />
-        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, mb: 2 }}>
-          {t('settings.autoCheckHint')}
-        </Typography>
         <Typography variant="body2" color="text.secondary">
           {t('settings.upstreamRepo')}
         </Typography>

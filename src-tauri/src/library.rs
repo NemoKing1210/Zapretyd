@@ -147,8 +147,19 @@ fn list_versions_at(base: &str) -> Result<Vec<InstalledVersion>, String> {
             list.push(version);
         }
     }
-    list.sort_by(|a, b| b.installed_at.cmp(&a.installed_at));
+    list.sort_by(|a, b| cmp_version_tags_desc(&a.tag, &b.tag));
     Ok(list)
+}
+
+/// Newest-first tag order (numeric segments, then full string).
+fn cmp_version_tags_desc(a: &str, b: &str) -> std::cmp::Ordering {
+    let key = |tag: &str| -> Vec<u64> {
+        tag.split(|c: char| !c.is_ascii_digit())
+            .filter(|part| !part.is_empty())
+            .filter_map(|part| part.parse().ok())
+            .collect()
+    };
+    key(b).cmp(&key(a)).then_with(|| b.cmp(a))
 }
 #[tauri::command]
 pub fn list_installed_versions(state: State<AppState>) -> Result<Vec<InstalledVersion>, String> {
@@ -334,6 +345,14 @@ mod tests {
     fn rejects_non_ascii_paths() {
         assert!(validate_library_path("C:\\Запрет").is_err());
         assert!(validate_library_path("C:\\Zapret").is_ok());
+    }
+    #[test]
+    fn sorts_version_tags_newest_first() {
+        assert_eq!(cmp_version_tags_desc("1.9.0", "1.10.0"), std::cmp::Ordering::Greater);
+        assert_eq!(cmp_version_tags_desc("1.10.0", "1.9.0"), std::cmp::Ordering::Less);
+        let mut tags = ["1.8.5", "1.10.0b", "1.9.0"];
+        tags.sort_by(|a, b| cmp_version_tags_desc(a, b));
+        assert_eq!(tags, ["1.10.0b", "1.9.0", "1.8.5"]);
     }
     #[test]
     fn default_library_uses_config_subdir_when_ascii() {

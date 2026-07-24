@@ -4,16 +4,27 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "camelCase")]
 pub struct AppSettings {
     pub library_path: Option<String>,
-    pub auto_check_updates: bool,
     pub last_update_check: Option<String>,
     pub latest_etag: Option<String>,
     pub theme: String,
     #[serde(default = "default_locale")]
     pub locale: String,
+    #[serde(default)]
+    pub cached_latest_tag: Option<String>,
+    #[serde(default)]
+    pub cached_release_count: Option<u32>,
 }
 
 fn default_locale() -> String {
     "system".into()
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReleaseCatalog {
+    pub latest_tag: String,
+    pub release_count: u32,
+    pub from_cache: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

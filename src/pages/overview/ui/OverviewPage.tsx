@@ -84,6 +84,7 @@ function StatusItem({
 export function OverviewPage({
   status,
   versions,
+  latestTag,
   serviceBusy,
   loadStrategies,
   onActivate,
@@ -94,6 +95,7 @@ export function OverviewPage({
 }: {
   status?: ServiceStatus;
   versions: InstalledVersion[];
+  latestTag?: string;
   serviceBusy: boolean;
   loadStrategies: (tag: string) => Promise<StrategyInfo[]>;
   onActivate: (strategy: StrategyInfo) => Promise<void>;
@@ -128,7 +130,6 @@ export function OverviewPage({
   }, [version, loadStrategies]);
 
   const picked = strategies.find((item) => item.name === strategy);
-  const latestTag = versions[0]?.tag;
   const running = Boolean(status?.serviceRunning && status.winwsRunning);
   const statusReady = status !== undefined;
   const assignLocked = statusReady && !status.isAdmin;
@@ -369,10 +370,10 @@ export function OverviewPage({
                 <MenuItem value="">
                   <em>{t('overview.selectVersion')}</em>
                 </MenuItem>
-                {versions.map((item, index) => (
+                {versions.map((item) => (
                   <MenuItem key={item.tag} value={item.tag}>
                     {item.tag}
-                    {index === 0 && (
+                    {latestTag && item.tag === latestTag && (
                       <Chip
                         size="small"
                         color="primary"

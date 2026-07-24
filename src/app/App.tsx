@@ -28,6 +28,7 @@ export function App() {
   const [installingTag, setInstallingTag] = useState<string>();
   const [serviceBusy, setServiceBusy] = useState(false);
   const [error, setError] = useState('');
+  const [online, setOnline] = useState(true);
   const showError = useCallback(
     (cause: unknown) => setError(translateError(String(cause))),
     [translateError],
@@ -41,24 +42,45 @@ export function App() {
       showError(cause);
     }
   }, [showError]);
-  const check = useCallback(async () => {
+  const refreshCatalog = useCallback(async () => {
     try {
-      await api.latest();
-    } catch (cause) {
-      showError(cause);
+      const catalog = await api.refreshReleaseCatalog();
+      setOnline(!catalog.fromCache);
+      setSettings((prev) =>
+        prev
+          ? {
+              ...prev,
+              cachedLatestTag: catalog.latestTag,
+              cachedReleaseCount: catalog.releaseCount,
+            }
+          : prev,
+      );
+    } catch {
+      setOnline(false);
     }
-  }, [showError]);
+  }, []);
   useEffect(() => {
-    api.settings().then(setSettings).catch(showError);
+    api.settings()
+      .then(async (initial) => {
+        setSettings(initial);
+        await refreshCatalog();
+      })
+      .catch(showError);
     refresh();
-  }, [refresh, showError]);
+  }, [refresh, refreshCatalog, showError]);
+  useEffect(() => {
+    const onOnline = () => void refreshCatalog();
+    const onOffline = () => setOnline(false);
+    window.addEventListener('online', onOnline);
+    window.addEventListener('offline', onOffline);
+    return () => {
+      window.removeEventListener('online', onOnline);
+      window.removeEventListener('offline', onOffline);
+    };
+  }, [refreshCatalog]);
   useEffect(() => {
     if (!settings?.libraryPath) return;
     refresh();
-    if (settings.autoCheckUpdates) {
-      const last = settings.lastUpdateCheck ? Date.parse(settings.lastUpdateCheck) : 0;
-      if (Date.now() - last > 86_400_000) void check();
-    }
     // Re-run only when the library path changes, not on every settings/callback identity change.
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional libraryPath-only deps
   }, [settings?.libraryPath]);
@@ -104,6 +126,7 @@ export function App() {
       <OverviewPage
         status={status}
         versions={versions}
+        latestTag={settings.cachedLatestTag}
         serviceBusy={serviceBusy}
         loadStrategies={api.strategies}
         onActivate={(strategy) => serviceAction(() => api.activate(strategy))}
@@ -115,6 +138,9 @@ export function App() {
     ) : page === 'versions' ? (
       <VersionsPage
         versions={versions}
+        latestTag={settings.cachedLatestTag}
+        releaseCount={settings.cachedReleaseCount}
+        online={online}
         busy={busy}
         error={error}
         installingTag={installingTag}
@@ -129,7 +155,7 @@ export function App() {
     <ThemeProvider theme={theme} defaultMode={normalizeThemeMode(settings.theme)}>
       <CssBaseline />
       <WindowChromeSync theme={settings.theme} />
-      <AppShell page={page} onPage={setPage} status={status}>
+      <AppShell page={page} onPage={setPage} status={status} installedCount={versions.length}>
         <PageTransition pageKey={page}>
           {error && page !== 'versions' && (
             <div role="alert" style={{ color: '#ba1a1a', marginBottom: 16 }}>

@@ -22,11 +22,13 @@ import { formatBytes, formatDate } from '../../../shared/lib/format';
 
 export function InstalledVersionsList({
   versions,
+  latestTag,
   onRemove,
   onOpen,
   onBrowseAll,
 }: {
   versions: InstalledVersion[];
+  latestTag?: string;
   onRemove: (tag: string) => void | Promise<void>;
   onOpen: (path: string) => void;
   onBrowseAll: () => void;
@@ -62,14 +64,14 @@ export function InstalledVersionsList({
 
   return (
     <Stack spacing={2}>
-      {versions.map((version, index) => (
+      {versions.map((version) => (
         <Card key={version.tag}>
           <CardContent>
             <Stack direction="row" justifyContent="space-between" alignItems="start">
               <Box>
                 <Typography variant="h6" component="div">
                   {version.tag}
-                  {index === 0 && (
+                  {latestTag && version.tag === latestTag && (
                     <Chip
                       label={t('versions.latest')}
                       color="primary"
