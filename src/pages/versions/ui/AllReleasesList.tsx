@@ -15,6 +15,7 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  Skeleton,
   Stack,
   Typography,
 } from '@mui/material';
@@ -69,9 +70,48 @@ export function AllReleasesList({
 
   if (loading) {
     return (
-      <Box display="flex" justifyContent="center" py={6}>
-        <CircularProgress />
-      </Box>
+      <Stack spacing={2}>
+        {Array.from({ length: 4 }, (_, index) => (
+          <Card
+            key={index}
+            sx={{
+              animation: 'zapretydSkeletonIn 360ms ease both',
+              animationDelay: `${index * 70}ms`,
+              '@keyframes zapretydSkeletonIn': {
+                from: { opacity: 0, transform: 'translateY(6px)' },
+                to: { opacity: 1, transform: 'translateY(0)' },
+              },
+              '@media (prefers-reduced-motion: reduce)': {
+                animation: 'none',
+              },
+            }}
+          >
+            <CardContent sx={{ pb: 1 }}>
+              <Stack
+                direction={{ xs: 'column', sm: 'row' }}
+                justifyContent="space-between"
+                gap={2}
+                alignItems={{ sm: 'flex-start' }}
+              >
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Skeleton variant="rounded" width={96} height={28} sx={{ mb: 1 }} />
+                  <Skeleton variant="text" width="42%" height={22} />
+                  <Skeleton variant="text" width="58%" height={20} />
+                </Box>
+                <Skeleton
+                  variant="rounded"
+                  width={120}
+                  height={36}
+                  sx={{ flexShrink: 0, borderRadius: 2 }}
+                />
+              </Stack>
+            </CardContent>
+            <Box sx={{ borderTop: 1, borderColor: 'divider', px: 2, py: 1.25 }}>
+              <Skeleton variant="text" width={110} height={22} />
+            </Box>
+          </Card>
+        ))}
+      </Stack>
     );
   }
 

@@ -1,11 +1,20 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Box, Stack, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
+import {
+  Alert,
+  Box,
+  Chip,
+  Stack,
+  ToggleButton,
+  ToggleButtonGroup,
+  Typography,
+} from '@mui/material';
 import {
   api,
   type InstalledVersion,
   type ReleaseInfo,
 } from '../../../shared/api/zapretyd';
 import { useTranslation } from '../../../shared/i18n';
+import { PageTransition } from '../../../shared/ui/PageTransition';
 import { AllReleasesList } from './AllReleasesList';
 import { InstalledVersionsList } from './InstalledVersionsList';
 
@@ -64,6 +73,12 @@ export function VersionsPage({
     void loadPage(1, false);
   }, [view, loadedOnce, loading, loadPage]);
 
+  const allCountLabel = loadedOnce
+    ? hasMore
+      ? `${releases.length}+`
+      : String(releases.length)
+    : '…';
+
   return (
     <Stack spacing={3}>
       <Box>
@@ -81,31 +96,43 @@ export function VersionsPage({
         }}
         aria-label={t('versions.title')}
       >
-        <ToggleButton value="installed">{t('versions.tabInstalled')}</ToggleButton>
-        <ToggleButton value="all">{t('versions.tabAll')}</ToggleButton>
+        <ToggleButton value="installed" sx={{ gap: 1, px: 2 }}>
+          {t('versions.tabInstalled')}
+          <Chip
+            size="small"
+            label={versions.length}
+            sx={{ height: 22, pointerEvents: 'none' }}
+          />
+        </ToggleButton>
+        <ToggleButton value="all" sx={{ gap: 1, px: 2 }}>
+          {t('versions.tabAll')}
+          <Chip size="small" label={allCountLabel} sx={{ height: 22, pointerEvents: 'none' }} />
+        </ToggleButton>
       </ToggleButtonGroup>
       {error && view === 'installed' && <Alert severity="error">{error}</Alert>}
-      {view === 'installed' ? (
-        <InstalledVersionsList
-          versions={versions}
-          onRemove={onRemove}
-          onOpen={onOpen}
-          onBrowseAll={() => setView('all')}
-        />
-      ) : (
-        <AllReleasesList
-          releases={releases}
-          versions={versions}
-          loading={loading}
-          loadingMore={loadingMore}
-          hasMore={hasMore}
-          error={listError || error}
-          installingTag={busy ? installingTag : undefined}
-          onLoadMore={() => void loadPage(page + 1, true)}
-          onInstall={onInstall}
-          onRemove={onRemove}
-        />
-      )}
+      <PageTransition pageKey={view}>
+        {view === 'installed' ? (
+          <InstalledVersionsList
+            versions={versions}
+            onRemove={onRemove}
+            onOpen={onOpen}
+            onBrowseAll={() => setView('all')}
+          />
+        ) : (
+          <AllReleasesList
+            releases={releases}
+            versions={versions}
+            loading={loading || (!loadedOnce && !listError)}
+            loadingMore={loadingMore}
+            hasMore={hasMore}
+            error={listError || error}
+            installingTag={busy ? installingTag : undefined}
+            onLoadMore={() => void loadPage(page + 1, true)}
+            onInstall={onInstall}
+            onRemove={onRemove}
+          />
+        )}
+      </PageTransition>
     </Stack>
   );
 }

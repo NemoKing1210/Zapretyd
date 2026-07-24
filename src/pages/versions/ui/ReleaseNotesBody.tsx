@@ -1,6 +1,8 @@
-import { Link, Typography } from '@mui/material';
+import { Box, Button, Link, Typography } from '@mui/material';
 import Markdown from 'react-markdown';
 import type { Components } from 'react-markdown';
+import rehypeRaw from 'rehype-raw';
+import rehypeSanitize from 'rehype-sanitize';
 import { api } from '../../../shared/api/zapretyd';
 import { useTranslation } from '../../../shared/i18n';
 
@@ -67,6 +69,14 @@ const markdownComponents: Components = {
       {children}
     </Typography>
   ),
+  img: ({ src, alt }) => (
+    <Box
+      component="img"
+      src={src}
+      alt={alt ?? ''}
+      sx={{ maxWidth: '100%', height: 'auto', display: 'block', my: 1, borderRadius: 1 }}
+    />
+  ),
 };
 
 export function ReleaseNotesBody({
@@ -81,24 +91,20 @@ export function ReleaseNotesBody({
   return (
     <>
       {text ? (
-        <Markdown components={markdownComponents}>{text}</Markdown>
+        <Markdown rehypePlugins={[rehypeRaw, rehypeSanitize]} components={markdownComponents}>
+          {text}
+        </Markdown>
       ) : (
         <Typography color="text.secondary" variant="body2">
           {t('versions.notesEmpty')}
         </Typography>
       )}
       {htmlUrl && (
-        <Typography variant="body2" mt={1.5}>
-          <Link
-            component="button"
-            type="button"
-            variant="body2"
-            onClick={() => void api.openUrl(htmlUrl)}
-            sx={{ cursor: 'pointer' }}
-          >
+        <Box mt={1.5}>
+          <Button variant="outlined" size="small" onClick={() => void api.openUrl(htmlUrl)}>
             {t('versions.openOnGitHub')}
-          </Link>
-        </Typography>
+          </Button>
+        </Box>
       )}
     </>
   );
