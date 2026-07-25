@@ -1,7 +1,7 @@
 use crate::{
     app::AppState,
     service,
-    types::{DownloadProgress, InstalledVersion, ReleaseInfo, StrategyInfo},
+    types::{DownloadProgress, InstalledVersion, ListFileInfo, ReleaseInfo, StrategyInfo},
 };
 use chrono::Utc;
 use futures_util::StreamExt;
@@ -14,6 +14,7 @@ use tauri::{Emitter, State, Window};
 use tokio::io::AsyncWriteExt;
 
 const META: &str = ".zapretyd.json";
+const LISTS_ORIGINAL_DIR: &str = ".zapretyd-original";
 /// Fallback when the app data path contains non-ASCII characters (e.g. Cyrillic username).
 const ASCII_FALLBACK_LIBRARY: &str = r"C:\Zapretyd";
 
@@ -331,6 +332,141 @@ pub fn get_strategies(tag: String, state: State<AppState>) -> Result<Vec<Strateg
     result.sort_by(|a, b| a.name.cmp(&b.name));
     Ok(result)
 }
+
+fn is_safe_path_segment(value: &str) -> bool {
+    !value.is_empty()
+        && value != "."
+        && value != ".."
+        && !value.contains(['/', '\\'])
+        && Path::new(value).file_name().and_then(|n| n.to_str()) == Some(value)
+}
+
+fn library_path_from_state(state: &State<AppState>) -> Result<String, String> {
+    state
+        .settings
+        .lock()
+        .map_err(|e| e.to_string())?
+        .library_path
+        .clone()
+        .ok_or_else(|| "error.library.notConfigured".to_string())
+}
+
+fn resolve_version_lists_dir(base: &str, tag: &str) -> Result<PathBuf, String> {
+    if !is_safe_path_segment(tag) {
+        return Err("error.library.listFileInvalid".into());
+    }
+    let root = versions_dir(base).join(tag);
+    if !root.is_dir() {
+        return Err("error.library.versionNotFound".into());
+    }
+    let lists = resolve_version_payload_dir(&root).join("lists");
+    if !lists.is_dir() {
+        return Err("error.library.listsNotFound".into());
+    }
+    Ok(lists)
+}
+
+fn resolve_managed_list_path(base: &str, tag: &str, name: &str) -> Result<PathBuf, String> {
+    if !is_safe_path_segment(name) {
+        return Err("error.library.listFileInvalid".into());
+    }
+    let lists = resolve_version_lists_dir(base, tag)?;
+    let lists_canon = lists
+        .canonicalize()
+        .map_err(|_| "error.library.listsNotFound".to_string())?;
+    let file_path = lists.join(name);
+    let file_canon = file_path
+        .canonicalize()
+        .map_err(|_| "error.library.listFileNotFound".to_string())?;
+    if !file_canon.starts_with(&lists_canon) || !file_canon.is_file() {
+        return Err("error.library.listFileInvalid".into());
+    }
+    // Keep backups and other hidden dirs out of editable paths.
+    if file_canon
+        .strip_prefix(&lists_canon)
+        .ok()
+        .and_then(|rel| rel.components().next())
+        .is_some_and(|component| {
+            component
+                .as_os_str()
+                .to_str()
+                .is_some_and(|part| part.starts_with('.'))
+        })
+    {
+        return Err("error.library.listFileInvalid".into());
+    }
+    Ok(file_canon)
+}
+
+fn list_files_in_lists_dir(lists: &Path) -> Result<Vec<ListFileInfo>, String> {
+    let mut result = vec![];
+    for entry in fs::read_dir(lists).map_err(|e| e.to_string())? {
+        let entry = entry.map_err(|e| e.to_string())?;
+        let path = entry.path();
+        if !path.is_file() {
+            continue;
+        }
+        let name = path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or_default()
+            .to_string();
+        if name.is_empty() || name.starts_with('.') {
+            continue;
+        }
+        let size = entry.metadata().map(|m| m.len()).unwrap_or(0);
+        result.push(ListFileInfo { name, size });
+    }
+    result.sort_by(|a, b| a.name.cmp(&b.name));
+    Ok(result)
+}
+
+fn backup_list_original(lists: &Path, name: &str, source: &Path) -> Result<(), String> {
+    let backup_dir = lists.join(LISTS_ORIGINAL_DIR);
+    let backup_path = backup_dir.join(name);
+    if backup_path.exists() {
+        return Ok(());
+    }
+    fs::create_dir_all(&backup_dir).map_err(|e| e.to_string())?;
+    fs::copy(source, &backup_path).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn list_version_list_files(
+    tag: String,
+    state: State<AppState>,
+) -> Result<Vec<ListFileInfo>, String> {
+    let base = library_path_from_state(&state)?;
+    let lists = resolve_version_lists_dir(&base, &tag)?;
+    list_files_in_lists_dir(&lists)
+}
+
+#[tauri::command]
+pub fn read_version_list_file(
+    tag: String,
+    name: String,
+    state: State<AppState>,
+) -> Result<String, String> {
+    let base = library_path_from_state(&state)?;
+    let path = resolve_managed_list_path(&base, &tag, &name)?;
+    fs::read_to_string(path).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn write_version_list_file(
+    tag: String,
+    name: String,
+    content: String,
+    state: State<AppState>,
+) -> Result<(), String> {
+    let base = library_path_from_state(&state)?;
+    let path = resolve_managed_list_path(&base, &tag, &name)?;
+    let lists = resolve_version_lists_dir(&base, &tag)?;
+    backup_list_original(&lists, &name, &path)?;
+    fs::write(path, content).map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 pub fn open_directory(path: String) -> Result<(), String> {
     std::process::Command::new("explorer")
@@ -400,5 +536,62 @@ mod tests {
         assert!(root.join("general.bat").is_file());
         assert!(!nested.exists());
         let _ = fs::remove_dir_all(&root);
+    }
+
+    fn make_version_with_lists(suffix: &str) -> (PathBuf, String) {
+        let base = std::env::temp_dir().join(format!("zapretyd-lists-{suffix}-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&base);
+        let tag = "1.10.0";
+        let version = base.join("versions").join(tag);
+        let lists = version.join("lists");
+        fs::create_dir_all(&lists).unwrap();
+        fs::write(version.join("general.bat"), "@echo off").unwrap();
+        fs::write(lists.join("list-general.txt"), "example.com\n").unwrap();
+        fs::write(lists.join("ipset-all.txt"), "1.1.1.1\n").unwrap();
+        fs::create_dir_all(lists.join(LISTS_ORIGINAL_DIR)).unwrap();
+        fs::write(
+            lists.join(LISTS_ORIGINAL_DIR).join("list-general.txt"),
+            "old\n",
+        )
+        .unwrap();
+        (base, tag.to_string())
+    }
+
+    #[test]
+    fn rejects_list_file_path_traversal() {
+        let (base, tag) = make_version_with_lists("traverse");
+        let base_str = base.to_string_lossy().into_owned();
+        assert!(resolve_managed_list_path(&base_str, &tag, "../general.bat").is_err());
+        assert!(resolve_managed_list_path(&base_str, &tag, r"..\general.bat").is_err());
+        assert!(resolve_managed_list_path(&base_str, &tag, "").is_err());
+        assert!(is_safe_path_segment("list-general.txt"));
+        assert!(!is_safe_path_segment(".."));
+        let _ = fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn list_files_skips_original_backup_dir() {
+        let (base, tag) = make_version_with_lists("list");
+        let lists = resolve_version_lists_dir(&base.to_string_lossy(), &tag).unwrap();
+        let files = list_files_in_lists_dir(&lists).unwrap();
+        let names: Vec<_> = files.iter().map(|f| f.name.as_str()).collect();
+        assert_eq!(names, vec!["ipset-all.txt", "list-general.txt"]);
+        assert!(!names.iter().any(|n| n.contains(LISTS_ORIGINAL_DIR)));
+        let _ = fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn backup_original_created_once() {
+        let (base, tag) = make_version_with_lists("backup");
+        let lists = resolve_version_lists_dir(&base.to_string_lossy(), &tag).unwrap();
+        let source = lists.join("ipset-all.txt");
+        let backup = lists.join(LISTS_ORIGINAL_DIR).join("ipset-all.txt");
+        assert!(!backup.exists());
+        backup_list_original(&lists, "ipset-all.txt", &source).unwrap();
+        assert_eq!(fs::read_to_string(&backup).unwrap(), "1.1.1.1\n");
+        fs::write(&source, "2.2.2.2\n").unwrap();
+        backup_list_original(&lists, "ipset-all.txt", &source).unwrap();
+        assert_eq!(fs::read_to_string(&backup).unwrap(), "1.1.1.1\n");
+        let _ = fs::remove_dir_all(&base);
     }
 }

@@ -116,6 +116,10 @@ export const ru: Record<TranslationKey, string> = {
   'versions.notesEmpty': 'Для этой версии нет описания.',
   'versions.openOnGitHub': 'Открыть на GitHub',
   'versions.prerelease': 'Пререлиз',
+  'versions.lists': 'Списки',
+  'versions.listsEmpty': 'В этой версии нет файлов списков.',
+  'versions.listsApply': 'Применить',
+  'versions.listsEditHint': 'Нажмите, чтобы изменить',
 
   'service.detected': 'Служба zapret обнаружена',
   'service.notInstalled': 'Служба zapret не установлена',
@@ -186,6 +190,9 @@ export const ru: Record<TranslationKey, string> = {
   'error.library.versionNotFound': 'Версия не найдена',
   'error.library.cannotRemoveActive': 'Нельзя удалить активную версию',
   'error.library.unsafeZipPath': 'Архив содержит небезопасный путь',
+  'error.library.listsNotFound': 'Папка lists не найдена для этой версии',
+  'error.library.listFileNotFound': 'Файл списка не найден',
+  'error.library.listFileInvalid': 'Некорректный путь к файлу списка',
 
   'error.autostart.failed': 'Не удалось обновить автозагрузку Windows',
 

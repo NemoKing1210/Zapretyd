@@ -31,7 +31,7 @@ export const theme = createTheme({
           userSelect: 'none',
           WebkitUserSelect: 'none',
         },
-        'input, textarea, [contenteditable="true"]': {
+        'input, textarea, [contenteditable="true"], .cm-editor, .cm-content, .cm-line': {
           userSelect: 'text',
           WebkitUserSelect: 'text',
         },

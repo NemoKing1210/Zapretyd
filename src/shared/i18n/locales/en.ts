@@ -114,6 +114,10 @@ export const en = {
   'versions.notesEmpty': 'No release notes for this version.',
   'versions.openOnGitHub': 'Open on GitHub',
   'versions.prerelease': 'Prerelease',
+  'versions.lists': 'Lists',
+  'versions.listsEmpty': 'No list files found in this version.',
+  'versions.listsApply': 'Apply',
+  'versions.listsEditHint': 'Click to edit',
 
   'service.detected': 'zapret service detected',
   'service.notInstalled': 'zapret service is not installed',
@@ -184,6 +188,9 @@ export const en = {
   'error.library.versionNotFound': 'Version not found',
   'error.library.cannotRemoveActive': 'Cannot remove the active version',
   'error.library.unsafeZipPath': 'Archive contains an unsafe path',
+  'error.library.listsNotFound': 'Lists folder not found for this version',
+  'error.library.listFileNotFound': 'List file not found',
+  'error.library.listFileInvalid': 'Invalid list file path',
 
   'error.autostart.failed': 'Failed to update Windows startup registration',
 

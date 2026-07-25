@@ -72,6 +72,13 @@ pub struct StrategyInfo {
     pub version: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ListFileInfo {
+    pub name: String,
+    pub size: u64,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct ServiceStatus {

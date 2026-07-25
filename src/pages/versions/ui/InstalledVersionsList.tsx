@@ -1,6 +1,9 @@
 import { useState } from 'react';
-import { DeleteOutline, RefreshOutlined } from '@mui/icons-material';
+import { DeleteOutline, ExpandMore, RefreshOutlined } from '@mui/icons-material';
 import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
   Alert,
   Box,
   Button,
@@ -19,6 +22,7 @@ import {
 import type { InstalledVersion } from '../../../shared/api/zapretyd';
 import { useTranslation } from '../../../shared/i18n';
 import { formatBytes, formatDate, formatVersionPath } from '../../../shared/lib/format';
+import { VersionListsPanel } from './VersionListsPanel';
 
 type ConfirmAction =
   | { type: 'reinstall'; tag: string }
@@ -51,6 +55,7 @@ export function InstalledVersionsList({
   const [confirm, setConfirm] = useState<ConfirmAction | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmBusy, setConfirmBusy] = useState(false);
+  const [expandedTag, setExpandedTag] = useState<string | false>(false);
   const busy = Boolean(installingTag) || confirmBusy;
 
   const openConfirm = (action: ConfirmAction) => {
@@ -150,6 +155,25 @@ export function InstalledVersionsList({
                 </Stack>
               </Stack>
             </CardContent>
+            <Accordion
+              disableGutters
+              elevation={0}
+              expanded={expandedTag === version.tag}
+              onChange={(_, open) => setExpandedTag(open ? version.tag : false)}
+              sx={{
+                bgcolor: 'transparent',
+                '&:before': { display: 'none' },
+                borderTop: 1,
+                borderColor: 'divider',
+              }}
+            >
+              <AccordionSummary expandIcon={<ExpandMore />}>
+                <Typography variant="body2">{t('versions.lists')}</Typography>
+              </AccordionSummary>
+              <AccordionDetails sx={{ pt: 0 }}>
+                <VersionListsPanel tag={version.tag} active={expandedTag === version.tag} />
+              </AccordionDetails>
+            </Accordion>
           </Card>
         );
       })}
