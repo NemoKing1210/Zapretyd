@@ -1,5 +1,6 @@
 import { type ReactNode } from 'react';
 import {
+  DeleteOutline,
   FolderOpenOutlined,
   GitHub,
   LanguageOutlined,
@@ -35,6 +36,8 @@ import {
   useTranslation,
   type LocalePreference,
 } from '../../../shared/i18n';
+import { reportCaughtError } from '../../../shared/lib/errorLog';
+import { useToast } from '../../../shared/ui/toast';
 
 const PROJECT_REPO_URL = 'https://github.com/NemoKing1210/Zapretyd';
 const AUTHOR_URL = 'https://github.com/NemoKing1210';
@@ -96,7 +99,8 @@ export function SettingsPage({
   settings: AppSettings;
   onSave: (settings: AppSettings, reason?: 'theme' | 'locale') => Promise<void>;
 }) {
-  const { t, localePreference, setLocalePreference } = useTranslation();
+  const { t, translateError, localePreference, setLocalePreference } = useTranslation();
+  const { showToast } = useToast();
   const { setMode } = useColorScheme();
   const appVersion = import.meta.env.VITE_APP_VERSION as string;
   const themeMode = normalizeThemeMode(settings.theme);
@@ -121,6 +125,23 @@ export function SettingsPage({
 
   const openExternal = (url: string) => {
     void api.openUrl(url);
+  };
+
+  const clearLogs = async () => {
+    try {
+      await api.clearErrorLogs();
+      showToast({
+        title: t('toast.logsCleared.title'),
+        description: t('toast.logsCleared.body'),
+      });
+    } catch (cause) {
+      reportCaughtError(cause, { source: 'settings.clearLogs', translate: translateError });
+      showToast({
+        title: t('toast.error.title'),
+        description: translateError(String(cause)) || t('toast.error.body'),
+        severity: 'error',
+      });
+    }
   };
 
   return (
@@ -228,13 +249,23 @@ export function SettingsPage({
 
       {!import.meta.env.DEV && (
         <SettingsSection title={t('settings.logsTitle')} hint={t('settings.logsHint')}>
-          <Button
-            variant="outlined"
-            startIcon={<FolderOpenOutlined />}
-            onClick={() => void api.openLogsDirectory()}
-          >
-            {t('settings.openLogsFolder')}
-          </Button>
+          <Stack direction="row" spacing={1.5} useFlexGap flexWrap="wrap">
+            <Button
+              variant="outlined"
+              startIcon={<FolderOpenOutlined />}
+              onClick={() => void api.openLogsDirectory()}
+            >
+              {t('settings.openLogsFolder')}
+            </Button>
+            <Button
+              variant="outlined"
+              color="error"
+              startIcon={<DeleteOutline />}
+              onClick={() => void clearLogs()}
+            >
+              {t('settings.clearLogs')}
+            </Button>
+          </Stack>
         </SettingsSection>
       )}
 

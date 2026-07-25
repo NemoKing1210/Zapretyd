@@ -69,6 +69,31 @@ fn versions_dir(base: &str) -> PathBuf {
     Path::new(base).join("versions")
 }
 
+/// Flowseal `service.bat` `:load_user_lists` — strategy args always reference these files.
+pub fn ensure_user_lists(version_root: &Path) -> Result<(), String> {
+    let lists = resolve_version_payload_dir(version_root).join("lists");
+    if !lists.is_dir() {
+        return Err("error.library.listsNotFound".into());
+    }
+    write_if_missing(
+        &lists.join("ipset-exclude-user.txt"),
+        "203.0.113.113/32\n",
+    )?;
+    write_if_missing(
+        &lists.join("list-general-user.txt"),
+        "# Never leave this file empty\ndomain.example.abc\n",
+    )?;
+    write_if_missing(&lists.join("list-exclude-user.txt"), "domain.example.abc\n")?;
+    Ok(())
+}
+
+fn write_if_missing(path: &Path, contents: &str) -> Result<(), String> {
+    if path.exists() {
+        return Ok(());
+    }
+    fs::write(path, contents).map_err(|e| e.to_string())
+}
+
 fn is_strategy_bat(path: &Path) -> bool {
     let name = path
         .file_name()
@@ -149,7 +174,7 @@ pub(crate) fn list_versions_at(base: &str) -> Result<Vec<InstalledVersion>, Stri
     if !root.exists() {
         return Ok(vec![]);
     }
-    let active = service::active_strategy_name().ok().flatten();
+    let active_tag = service::active_version_tag(base);
     let mut list = vec![];
     for entry in fs::read_dir(root).map_err(|e| e.to_string())? {
         let entry = entry.map_err(|e| e.to_string())?;
@@ -162,10 +187,12 @@ pub(crate) fn list_versions_at(base: &str) -> Result<Vec<InstalledVersion>, Stri
             .and_then(|s| serde_json::from_str::<InstalledVersion>(&s).ok());
         if let Some(mut version) = data {
             version.path = entry.path().to_string_lossy().into();
-            let payload = resolve_version_payload_dir(&entry.path());
-            version.is_active = active
+            // Active = version that owns the service ImagePath / stored tag.
+            // Matching only by strategy .bat name marks every release that ships
+            // the same file (e.g. general (ALT4).bat) as active.
+            version.is_active = active_tag
                 .as_ref()
-                .is_some_and(|name| payload.join(name).exists());
+                .is_some_and(|tag| tag.eq_ignore_ascii_case(&version.tag));
             list.push(version);
         }
     }
@@ -248,6 +275,7 @@ pub async fn install_release(
     let hash = format!("{:x}", hasher.finalize());
     extract_zip(&temporary, &target)?;
     flatten_single_root_dir(&target)?;
+    let _ = ensure_user_lists(&target);
     let _ = fs::remove_file(&temporary);
     let version = InstalledVersion {
         tag: release.tag,
@@ -310,6 +338,7 @@ pub fn get_strategies(tag: String, state: State<AppState>) -> Result<Vec<Strateg
         return Err("error.library.versionNotFound".into());
     }
     let payload = resolve_version_payload_dir(&root);
+    let _ = ensure_user_lists(&root);
     let mut result = vec![];
     for entry in fs::read_dir(&payload).map_err(|e| e.to_string())? {
         let path = entry.map_err(|e| e.to_string())?.path();
@@ -507,6 +536,8 @@ pub fn list_version_list_files(
     state: State<AppState>,
 ) -> Result<Vec<ListFileInfo>, String> {
     let base = library_path_from_state(&state)?;
+    let root = versions_dir(&base).join(&tag);
+    let _ = ensure_user_lists(&root);
     let lists = resolve_version_lists_dir(&base, &tag)?;
     list_files_in_lists_dir(&lists)
 }
@@ -686,6 +717,26 @@ mod tests {
         )
         .unwrap();
         (base, tag.to_string())
+    }
+
+    #[test]
+    fn creates_missing_flowseal_user_lists() {
+        let (base, tag) = make_version_with_lists("userlists");
+        let root = base.join("versions").join(&tag);
+        let lists = root.join("lists");
+        assert!(!lists.join("list-general-user.txt").exists());
+        ensure_user_lists(&root).unwrap();
+        assert!(lists.join("list-general-user.txt").is_file());
+        assert!(lists.join("list-exclude-user.txt").is_file());
+        assert!(lists.join("ipset-exclude-user.txt").is_file());
+        // Second call must not overwrite existing content.
+        fs::write(lists.join("list-general-user.txt"), "keep-me\n").unwrap();
+        ensure_user_lists(&root).unwrap();
+        assert_eq!(
+            fs::read_to_string(lists.join("list-general-user.txt")).unwrap(),
+            "keep-me\n"
+        );
+        let _ = fs::remove_dir_all(&base);
     }
 
     #[test]

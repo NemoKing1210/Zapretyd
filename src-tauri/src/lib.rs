@@ -71,8 +71,10 @@ pub fn run() {
             error_log::append_error_logs,
             error_log::get_logs_dir,
             error_log::open_logs_directory,
+            error_log::clear_error_logs,
             service::get_service_status,
             service::activate_strategy,
+            service::start_service,
             service::stop_service,
             service::remove_service
         ])

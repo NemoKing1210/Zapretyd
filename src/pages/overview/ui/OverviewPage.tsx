@@ -102,6 +102,7 @@ export function OverviewPage({
   serviceBusy,
   loadStrategies,
   onActivate,
+  onStart,
   onStop,
   onRemove,
   onAdmin,
@@ -113,6 +114,7 @@ export function OverviewPage({
   serviceBusy: boolean;
   loadStrategies: (tag: string) => Promise<StrategyInfo[]>;
   onActivate: (strategy: StrategyInfo) => Promise<void>;
+  onStart: () => void;
   onStop: () => void;
   onRemove: () => void;
   onAdmin: () => void;
@@ -125,26 +127,51 @@ export function OverviewPage({
   const [confirm, setConfirm] = useState(false);
   const [strategiesLoading, setStrategiesLoading] = useState(false);
 
+  // Prefill empty selectors from the active service (mount / remount after navigation).
+  useEffect(() => {
+    const activeVersion = versions.find((item) => item.isActive);
+    if (!activeVersion) return;
+    setVersion((prev) => prev || activeVersion.tag);
+  }, [versions]);
+
   useEffect(() => {
     if (!version) {
       setStrategies([]);
       setStrategiesLoading(false);
       return;
     }
+    let cancelled = false;
     setStrategiesLoading(true);
     loadStrategies(version)
-      .then(setStrategies)
+      .then((list) => {
+        if (!cancelled) setStrategies(list);
+      })
       .catch((cause) => {
-        setStrategies([]);
+        if (!cancelled) setStrategies([]);
         onStrategiesError(cause);
       })
-      .finally(() => setStrategiesLoading(false));
+      .finally(() => {
+        if (!cancelled) setStrategiesLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
     // Intentionally omit onStrategiesError — parent callback identity must not retrigger loads.
     // eslint-disable-next-line react-hooks/exhaustive-deps -- version + loadStrategies only
   }, [version, loadStrategies]);
 
+  useEffect(() => {
+    const activeName = status?.activeStrategy;
+    if (!activeName) return;
+    const activeVersion = versions.find((item) => item.isActive);
+    if (!activeVersion || version !== activeVersion.tag) return;
+    if (!strategies.some((item) => item.name === activeName)) return;
+    setStrategy((prev) => prev || activeName);
+  }, [status?.activeStrategy, strategies, version, versions]);
+
   const picked = strategies.find((item) => item.name === strategy);
-  const running = Boolean(status?.serviceRunning && status.winwsRunning);
+  // Service state is authoritative; winws may lag briefly after `sc start`.
+  const running = Boolean(status?.serviceRunning);
   const statusReady = status !== undefined;
   const message = status?.messageCode ? t(status.messageCode as TranslationKey) : '';
 
@@ -207,18 +234,40 @@ export function OverviewPage({
                     : t('overview.pickStrategyHint')}
                 </Typography>
                 <Stack direction="row" spacing={1.5} mt={3} flexWrap="wrap" useFlexGap>
-                  <Button
-                    variant="outlined"
-                    color={running ? 'inherit' : 'warning'}
-                    startIcon={
-                      serviceBusy ? <CircularProgress size={18} color="inherit" /> : <StopOutlined />
-                    }
-                    disabled={!status.serviceRunning || !status.isAdmin || serviceBusy}
-                    onClick={onStop}
-                    sx={running ? runningActionSx : undefined}
-                  >
-                    {t('overview.stop')}
-                  </Button>
+                  {status.serviceRunning ? (
+                    <Button
+                      variant="outlined"
+                      color="inherit"
+                      startIcon={
+                        serviceBusy ? (
+                          <CircularProgress size={18} color="inherit" />
+                        ) : (
+                          <StopOutlined />
+                        )
+                      }
+                      disabled={!status.isAdmin || serviceBusy}
+                      onClick={onStop}
+                      sx={runningActionSx}
+                    >
+                      {t('overview.stop')}
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="outlined"
+                      color="success"
+                      startIcon={
+                        serviceBusy ? (
+                          <CircularProgress size={18} color="inherit" />
+                        ) : (
+                          <PlayArrowOutlined />
+                        )
+                      }
+                      disabled={!status.serviceExists || !status.isAdmin || serviceBusy}
+                      onClick={onStart}
+                    >
+                      {t('overview.start')}
+                    </Button>
+                  )}
                   <Button
                     variant="outlined"
                     color={running ? 'inherit' : 'error'}

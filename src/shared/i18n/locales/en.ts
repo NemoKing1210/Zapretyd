@@ -32,6 +32,8 @@ export const en = {
   'toast.languageChanged.body': 'The interface language has been changed.',
   'toast.serviceActivated.title': 'Service started',
   'toast.serviceActivated.body': 'The zapret service was created and started with the selected strategy.',
+  'toast.serviceStarted.title': 'Service started',
+  'toast.serviceStarted.body': 'The zapret service is running again.',
   'toast.serviceStopped.title': 'Service stopped',
   'toast.serviceStopped.body': 'The zapret service has been stopped.',
   'toast.serviceRemoved.title': 'Service removed',
@@ -44,6 +46,8 @@ export const en = {
   'toast.debug.title': 'Debug',
   'toast.debug.cachedLatestTagCleared.body':
     'The cached latest release tag was cleared. Refresh the catalog to fetch it again.',
+  'toast.logsCleared.title': 'Logs cleared',
+  'toast.logsCleared.body': 'All error log files were deleted.',
 
   'error.generic': 'Something went wrong. Please try again.',
   'error.details': 'Error details',
@@ -79,6 +83,7 @@ export const en = {
   'overview.loadingStrategies': 'Loading strategies…',
   'overview.replaceAndStart': 'Replace and start service',
   'overview.stop': 'Stop',
+  'overview.start': 'Start',
   'overview.removeService': 'Remove service',
   'overview.confirmTitle': 'Replace the current service?',
   'overview.confirmBody':
@@ -150,10 +155,10 @@ export const en = {
   'settings.startMinimized': 'Start minimized',
   'settings.startMinimizedHint':
     'When launched at startup, hide the window to the system tray.',
-  'settings.logsTitle': 'Error logs',
-  'settings.logsHint':
-    'In release builds, errors are written to daily files in this folder (kept for 14 days).',
-  'settings.openLogsFolder': 'Open logs folder',
+  'settings.logsTitle': 'Logs',
+  'settings.logsHint': 'Errors from the app are saved in this folder.',
+  'settings.openLogsFolder': 'Open folder',
+  'settings.clearLogs': 'Clear',
   'settings.upstreamRepo': 'Source repository',
   'settings.updatesHint':
     'Zapretyd checks this GitHub repository for zapret releases on launch.',
@@ -207,7 +212,8 @@ export const en = {
   'error.service.invalidFileName': 'Invalid file name',
   'error.service.saveStrategyFailed': 'Failed to save the selected strategy',
   'error.service.startFailed':
-    'Service was created but failed to start. Check WinDivert and the strategy.',
+    'Service was created but failed to stay running. Missing strategy lists or a WinDivert conflict are common causes.',
+  'error.service.notInstalled': 'The zapret service is not installed. Assign a strategy first.',
   'error.service.stopFailed': 'Failed to stop zapret service',
   'error.service.removeFailed': 'Failed to remove zapret service',
 } as const;

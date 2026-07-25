@@ -90,7 +90,7 @@ export function AppShell({
   const { t } = useTranslation();
   const [collapsed, setCollapsed] = useState(readCollapsed);
   const errorLog = useErrorLog();
-  const running = Boolean(status?.serviceRunning && status.winwsRunning);
+  const running = Boolean(status?.serviceRunning);
   const appVersion = import.meta.env.VITE_APP_VERSION as string;
   const drawerWidth = collapsed ? DRAWER_WIDTH_COLLAPSED : DRAWER_WIDTH;
   const errorCount = import.meta.env.DEV ? errorLog.length : 0;

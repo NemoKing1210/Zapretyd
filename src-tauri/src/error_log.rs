@@ -198,6 +198,25 @@ pub fn open_logs_directory(state: State<'_, AppState>) -> Result<(), String> {
     crate::library::open_directory(dir.to_string_lossy().into_owned())
 }
 
+pub fn clear_logs(config_dir: &Path) -> Result<(), String> {
+    let dir = ensure_logs_dir(config_dir)?;
+    let _guard = WRITE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let entries = fs::read_dir(&dir).map_err(|e| e.to_string())?;
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.extension().and_then(|e| e.to_str()) != Some("log") {
+            continue;
+        }
+        fs::remove_file(&path).map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub fn clear_error_logs(state: State<'_, AppState>) -> Result<(), String> {
+    clear_logs(&state.config_dir)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -248,6 +267,14 @@ mod tests {
         assert!(content.contains("source: test"));
         assert!(content.contains("boom"));
         assert!(content.contains("stack"));
+
+        clear_logs(&dir).unwrap();
+        let remaining: Vec<_> = fs::read_dir(&logs)
+            .unwrap()
+            .filter_map(|e| e.ok())
+            .filter(|e| e.path().extension().and_then(|ext| ext.to_str()) == Some("log"))
+            .collect();
+        assert!(remaining.is_empty());
 
         let _ = fs::remove_dir_all(&dir);
     }

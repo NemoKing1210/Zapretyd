@@ -34,6 +34,8 @@ export const ru: Record<TranslationKey, string> = {
   'toast.languageChanged.body': 'Язык интерфейса изменён.',
   'toast.serviceActivated.title': 'Служба запущена',
   'toast.serviceActivated.body': 'Служба zapret создана и запущена с выбранной стратегией.',
+  'toast.serviceStarted.title': 'Служба запущена',
+  'toast.serviceStarted.body': 'Служба zapret снова работает.',
   'toast.serviceStopped.title': 'Служба остановлена',
   'toast.serviceStopped.body': 'Служба zapret остановлена.',
   'toast.serviceRemoved.title': 'Служба удалена',
@@ -46,6 +48,8 @@ export const ru: Record<TranslationKey, string> = {
   'toast.debug.title': 'Отладка',
   'toast.debug.cachedLatestTagCleared.body':
     'Сохранённый тег последней версии очищен. Обновите каталог, чтобы получить его снова.',
+  'toast.logsCleared.title': 'Логи очищены',
+  'toast.logsCleared.body': 'Все файлы логов ошибок удалены.',
 
   'error.generic': 'Что-то пошло не так. Попробуйте ещё раз.',
   'error.details': 'Подробности ошибки',
@@ -81,6 +85,7 @@ export const ru: Record<TranslationKey, string> = {
   'overview.loadingStrategies': 'Загрузка стратегий…',
   'overview.replaceAndStart': 'Заменить и запустить службу',
   'overview.stop': 'Остановить',
+  'overview.start': 'Запустить',
   'overview.removeService': 'Удалить службу',
   'overview.confirmTitle': 'Заменить текущую службу?',
   'overview.confirmBody':
@@ -152,10 +157,10 @@ export const ru: Record<TranslationKey, string> = {
   'settings.startMinimized': 'Запускать свёрнутым',
   'settings.startMinimizedHint':
     'При автозапуске скрывать окно в системный трей.',
-  'settings.logsTitle': 'Логи ошибок',
-  'settings.logsHint':
-    'В release-сборке ошибки пишутся в дневные файлы в этой папке (хранятся 14 дней).',
-  'settings.openLogsFolder': 'Открыть папку логов',
+  'settings.logsTitle': 'Логи',
+  'settings.logsHint': 'Ошибки приложения сохраняются в этой папке.',
+  'settings.openLogsFolder': 'Открыть папку',
+  'settings.clearLogs': 'Очистить',
   'settings.upstreamRepo': 'Исходный репозиторий',
   'settings.updatesHint':
     'При запуске Zapretyd проверяет этот репозиторий GitHub на наличие релизов zapret.',
@@ -210,7 +215,8 @@ export const ru: Record<TranslationKey, string> = {
   'error.service.invalidFileName': 'Некорректное имя файла',
   'error.service.saveStrategyFailed': 'Не удалось сохранить выбранную стратегию',
   'error.service.startFailed':
-    'Служба создана, но не запустилась. Проверьте WinDivert и стратегию.',
+    'Служба создана, но сразу остановилась. Часто не хватает user-списков или мешает WinDivert.',
+  'error.service.notInstalled': 'Служба zapret не установлена. Сначала назначьте стратегию.',
   'error.service.stopFailed': 'Не удалось остановить службу zapret',
   'error.service.removeFailed': 'Не удалось удалить службу zapret',
 };

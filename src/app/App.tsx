@@ -83,6 +83,16 @@ function AppBody() {
       showError(cause, 'app.refresh');
     }
   }, [showError]);
+  const refreshStatus = useCallback(async () => {
+    try {
+      setStatus(await api.status());
+    } catch (cause) {
+      reportCaughtError(cause, {
+        source: 'app.statusPoll',
+        translate: translateErrorRef.current,
+      });
+    }
+  }, []);
   const refreshCatalog = useCallback(async () => {
     setCatalogLoading(true);
     try {
@@ -163,6 +173,11 @@ function AppBody() {
     if (!settings) return;
     setMode(normalizeThemeMode(settings.theme));
   }, [settings, setMode]);
+  useEffect(() => {
+    if (!settings) return;
+    const id = window.setInterval(() => void refreshStatus(), 5000);
+    return () => window.clearInterval(id);
+  }, [settings, refreshStatus]);
   useEffect(() => {
     const onOnline = () => void refreshCatalog();
     const onOffline = () => {
@@ -246,6 +261,9 @@ function AppBody() {
     setServiceBusy(true);
     try {
       await runAction(action, successToast, source);
+      // winws / SERVICE_RUNNING can lag a second or two after `sc start`.
+      window.setTimeout(() => void refreshStatus(), 1200);
+      window.setTimeout(() => void refreshStatus(), 3500);
     } finally {
       setServiceBusy(false);
     }
@@ -276,6 +294,16 @@ function AppBody() {
               description: t('toast.serviceActivated.body'),
             },
             'service.activate',
+          )
+        }
+        onStart={() =>
+          serviceAction(
+            api.start,
+            {
+              title: t('toast.serviceStarted.title'),
+              description: t('toast.serviceStarted.body'),
+            },
+            'service.start',
           )
         }
         onStop={() =>

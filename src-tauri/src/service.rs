@@ -80,20 +80,58 @@ fn require_service_command(code: &str, args: &[&str]) -> Result<(), String> {
 }
 
 pub fn active_strategy_name() -> Result<Option<String>, String> {
+    Ok(reg_service_value("zapret-discord-youtube"))
+}
+
+/// Version tag written on activate, or inferred from the service `ImagePath`.
+pub fn active_version_tag(library_base: &str) -> Option<String> {
+    if let Some(tag) = reg_service_value("zapret-discord-youtube-version") {
+        return Some(tag);
+    }
+    let image = reg_service_value("ImagePath")?;
+    version_tag_from_image_path(&image, library_base)
+}
+
+fn reg_service_value(name: &str) -> Option<String> {
     let result = output(
         "reg",
         &[
             "query",
             r"HKLM\System\CurrentControlSet\Services\zapret",
             "/v",
-            "zapret-discord-youtube",
+            name,
         ],
     );
-    Ok(result
-        .lines()
-        .find_map(|line| line.split("REG_SZ").nth(1))
-        .map(|value| value.trim().to_string())
-        .filter(|s| !s.is_empty()))
+    result.lines().find_map(|line| {
+        let value = if let Some(v) = line.split("REG_SZ").nth(1) {
+            v
+        } else if let Some(v) = line.split("REG_EXPAND_SZ").nth(1) {
+            v
+        } else {
+            return None;
+        };
+        let value = value.trim().trim_matches('"');
+        (!value.is_empty()).then(|| value.to_string())
+    })
+}
+
+/// Extract `<tag>` from `...\versions\<tag>\...` inside the service ImagePath.
+pub(crate) fn version_tag_from_image_path(image_path: &str, library_base: &str) -> Option<String> {
+    let normalized = image_path.replace('/', "\\");
+    let marker = "\\versions\\";
+    let lower = normalized.to_ascii_lowercase();
+    let base_lower = library_base.replace('/', "\\").to_ascii_lowercase();
+    // Prefer a path under the managed library when present.
+    let search_in = if !base_lower.is_empty() && lower.contains(&base_lower) {
+        &normalized[lower.find(&base_lower)?..]
+    } else {
+        normalized.as_str()
+    };
+    let search_lower = search_in.to_ascii_lowercase();
+    let idx = search_lower.find(marker)?;
+    let after = &search_in[idx + marker.len()..];
+    let tag = after.split(['\\', '/']).next()?.trim();
+    (!tag.is_empty()).then(|| tag.to_string())
 }
 /// Whether a Windows service is registered. Uses `sc` exit code — localized
 /// messages say `Ошибка: 1060:` instead of English `FAILED 1060`.
@@ -109,20 +147,41 @@ fn service_installed(name: &str) -> bool {
 fn service_running(name: &str) -> bool {
     output("sc", &["query", name]).contains("RUNNING")
 }
+
+/// PID from `sc queryex` (0 means the service has no process).
+fn service_pid(name: &str) -> Option<u32> {
+    for line in output("sc", &["queryex", name]).lines() {
+        let line = line.trim();
+        let Some((key, value)) = line.split_once(':') else {
+            continue;
+        };
+        if !key.trim().eq_ignore_ascii_case("pid") {
+            continue;
+        }
+        let pid = value.trim().parse::<u32>().ok()?;
+        return (pid > 0).then_some(pid);
+    }
+    None
+}
+
 fn process_running(name: &str) -> bool {
     output("tasklist", &["/FI", &format!("IMAGENAME eq {name}")])
         .to_ascii_lowercase()
         .contains(&name.to_ascii_lowercase())
 }
+
 #[tauri::command]
 pub fn get_service_status() -> ServiceStatus {
     let exists = service_installed("zapret");
+    let zapret_running = service_running("zapret");
+    // Prefer tasklist; fall back to service PID — Session 0 processes are sometimes missed.
+    let winws_running = process_running("winws.exe") || service_pid("zapret").is_some();
     ServiceStatus {
         is_admin: administrator(),
         service_exists: exists,
-        service_running: service_running("zapret"),
+        service_running: zapret_running,
         windivert_running: service_running("WinDivert") || service_running("WinDivert14"),
-        winws_running: process_running("winws.exe"),
+        winws_running,
         active_strategy: active_strategy_name().ok().flatten(),
         message_code: if exists {
             "service.detected".into()
@@ -194,6 +253,58 @@ fn escape_quotes_for_sc(args: &str) -> String {
     args.replace('"', r#"\""#)
 }
 
+/// Build the Flowseal-style `sc create` line (not yet passed through `cmd`).
+fn sc_create_cmdline(binary: &Path, args: &str) -> String {
+    let args = escape_quotes_for_sc(args);
+    format!(
+        r#"sc create zapret binPath= "\"{bin}\" {args}" DisplayName= "zapret" start= auto"#,
+        bin = binary.display(),
+        args = args,
+    )
+}
+
+/// Run `cmd.exe /d /c <script>` without Rust re-quoting `script`.
+///
+/// `.arg(script)` would escape embedded `\"` for CreateProcess; `sc` then sees a
+/// broken `binPath=` and exits 1639 with its usage text. `raw_arg` keeps the
+/// same bytes a `.bat` would pass to `cmd`.
+fn run_cmd_script(script: &str) -> Result<(), String> {
+    use std::os::windows::process::CommandExt;
+
+    let display = format!("cmd.exe /d /c {script}");
+    let mut command = Command::new("cmd.exe");
+    let output = hide_console(&mut command)
+        .arg("/d")
+        .arg("/c")
+        .raw_arg(script)
+        .output()
+        .map_err(|e| format!("{display}\nfailed to spawn: {e}"))?;
+
+    if output.status.success() {
+        return Ok(());
+    }
+
+    let exit = output
+        .status
+        .code()
+        .map(|c| c.to_string())
+        .unwrap_or_else(|| "terminated".into());
+    let stdout = decode_console_bytes(&output.stdout);
+    let stderr = decode_console_bytes(&output.stderr);
+    let mut detail = format!("{display}\nexit={exit}");
+    let stdout = stdout.trim();
+    let stderr = stderr.trim();
+    if !stdout.is_empty() {
+        detail.push_str("\nstdout:\n");
+        detail.push_str(stdout);
+    }
+    if !stderr.is_empty() {
+        detail.push_str("\nstderr:\n");
+        detail.push_str(stderr);
+    }
+    Err(detail)
+}
+
 fn parse_winws_args(strategy: &Path) -> Result<String, String> {
     let content = fs::read_to_string(strategy).map_err(|e| e.to_string())?;
     let mut command = String::new();
@@ -251,14 +362,9 @@ fn parse_winws_args(strategy: &Path) -> Result<String, String> {
 /// Match Flowseal `service.bat`:
 /// `sc create zapret binPath= "\"%BIN_PATH%winws.exe\" !ARGS!" DisplayName= "zapret" start= auto`
 fn create_zapret_service(binary: &Path, args: &str) -> Result<(), String> {
-    let args = escape_quotes_for_sc(args);
-    let cmdline = format!(
-        r#"sc create zapret binPath= "\"{bin}\" {args}" DisplayName= "zapret" start= auto"#,
-        bin = binary.display(),
-        args = args,
-    );
-    // Run via cmd so quoting matches the upstream .bat (CreateProcess alone mangles `=` args).
-    require_command("error.service.createFailed", "cmd.exe", &["/d", "/c", &cmdline])
+    // Must go through cmd with raw_arg — see `run_cmd_script`.
+    run_cmd_script(&sc_create_cmdline(binary, args))
+        .map_err(|detail| format!("error.service.createFailed|{detail}"))
 }
 
 #[tauri::command]
@@ -271,9 +377,10 @@ pub fn activate_strategy(strategy: StrategyInfo, state: State<AppState>) -> Resu
     if !binary.exists() {
         return Err("error.service.winwsNotFound".into());
     }
+    // Strategies reference *-user.txt lists that Flowseal creates via load_user_lists.
+    crate::library::ensure_user_lists(root)?;
     let args = parse_winws_args(file)?;
-    let _ = run_command("sc", &["stop", "zapret"]);
-    let _ = run_command("sc", &["delete", "zapret"]);
+    prepare_service_replace();
     create_zapret_service(&binary, &args)?;
     let filename = file
         .file_name()
@@ -294,19 +401,87 @@ pub fn activate_strategy(strategy: StrategyInfo, state: State<AppState>) -> Resu
             "/f",
         ],
     )?;
+    require_command(
+        "error.service.saveStrategyFailed",
+        "reg",
+        &[
+            "add",
+            r"HKLM\System\CurrentControlSet\Services\zapret",
+            "/v",
+            "zapret-discord-youtube-version",
+            "/t",
+            "REG_SZ",
+            "/d",
+            &strategy.version,
+            "/f",
+        ],
+    )?;
     require_command("error.service.startFailed", "sc", &["start", "zapret"])?;
+    wait_until_service_running()?;
     Ok(())
 }
+
+fn wait_until_service_running() -> Result<(), String> {
+    // `sc start` can succeed while winws immediately exits (missing lists, WinDivert conflict).
+    std::thread::sleep(std::time::Duration::from_millis(1200));
+    if service_running("zapret") {
+        return Ok(());
+    }
+    let detail = output("sc", &["query", "zapret"]);
+    Err(format!(
+        "error.service.startFailed|Service exited right after start.\n{detail}"
+    ))
+}
+
+/// Start an already-installed zapret service without recreating it.
+#[tauri::command]
+pub fn start_service(state: State<AppState>) -> Result<(), String> {
+    require_admin()?;
+    if !service_installed("zapret") {
+        return Err("error.service.notInstalled".into());
+    }
+    if service_running("zapret") {
+        return Ok(());
+    }
+    if let Ok(base) = crate::library::managed_library_path(&state.config_dir) {
+        if let Some(tag) = active_version_tag(&base) {
+            let root = std::path::Path::new(&base).join("versions").join(tag);
+            let _ = crate::library::ensure_user_lists(&root);
+        }
+    }
+    require_command("error.service.startFailed", "sc", &["start", "zapret"])?;
+    wait_until_service_running()
+}
+
+/// Match Flowseal install/remove: clear zapret, orphan winws, and leftover WinDivert.
+fn prepare_service_replace() {
+    let _ = run_command("sc", &["stop", "zapret"]);
+    let _ = run_command("sc", &["delete", "zapret"]);
+    let _ = run_command("taskkill", &["/IM", "winws.exe", "/F"]);
+    clear_windivert();
+}
+
+fn clear_windivert() {
+    let _ = run_command("sc", &["stop", "WinDivert"]);
+    let _ = run_command("sc", &["delete", "WinDivert"]);
+    let _ = run_command("sc", &["stop", "WinDivert14"]);
+    let _ = run_command("sc", &["delete", "WinDivert14"]);
+}
+
 #[tauri::command]
 pub fn stop_service() -> Result<(), String> {
     require_admin()?;
     require_service_command("error.service.stopFailed", &["stop", "zapret"])
 }
+
 #[tauri::command]
 pub fn remove_service() -> Result<(), String> {
     require_admin()?;
     let _ = run_command("sc", &["stop", "zapret"]);
-    require_service_command("error.service.removeFailed", &["delete", "zapret"])
+    require_service_command("error.service.removeFailed", &["delete", "zapret"])?;
+    let _ = run_command("taskkill", &["/IM", "winws.exe", "/F"]);
+    clear_windivert();
+    Ok(())
 }
 #[cfg(test)]
 mod tests {
@@ -389,6 +564,16 @@ start "zapret: test" /min "%BIN%winws.exe" --wf-tcp=80,443,%GameFilterTCP% --wf-
     }
 
     #[test]
+    fn sc_create_cmdline_matches_flowseal_quoting() {
+        let bin = Path::new(r"C:\Zapretyd\library\versions\1.10.0\bin\winws.exe");
+        let line = sc_create_cmdline(bin, r#"--hostlist="C:\lists\a.txt" --new"#);
+        assert_eq!(
+            line,
+            r#"sc create zapret binPath= "\"C:\Zapretyd\library\versions\1.10.0\bin\winws.exe\" --hostlist=\"C:\lists\a.txt\" --new" DisplayName= "zapret" start= auto"#
+        );
+    }
+
+    #[test]
     fn run_command_reports_missing_program() {
         let err = run_command("zapretyd-missing-helper-exe", &["arg"]).unwrap_err();
         assert!(err.contains("zapretyd-missing-helper-exe"));
@@ -406,5 +591,39 @@ start "zapret: test" /min "%BIN%winws.exe" --wf-tcp=80,443,%GameFilterTCP% --wf-
         assert!(!service_missing_detail(
             "sc delete zapret\nexit=5\nstdout:\nAccess is denied."
         ));
+    }
+
+    #[test]
+    fn parses_service_pid_lines() {
+        // Mirror `sc queryex` key/value shape used by `service_pid`.
+        let sample = "TYPE               : 10  WIN32_OWN_PROCESS\nSTATE              : 4  RUNNING\nPID                : 4242\nFLAGS              :";
+        let pid = sample.lines().find_map(|line| {
+            let line = line.trim();
+            let (key, value) = line.split_once(':')?;
+            if !key.trim().eq_ignore_ascii_case("pid") {
+                return None;
+            }
+            let pid = value.trim().parse::<u32>().ok()?;
+            (pid > 0).then_some(pid)
+        });
+        assert_eq!(pid, Some(4242));
+    }
+
+    #[test]
+    fn extracts_version_tag_from_image_path() {
+        let image = r#""C:\Users\nemok\AppData\Roaming\Zapretyd\library\versions\1.10.0\bin\winws.exe" --wf-tcp=80"#;
+        let base = r"C:\Users\nemok\AppData\Roaming\Zapretyd\library";
+        assert_eq!(
+            version_tag_from_image_path(image, base).as_deref(),
+            Some("1.10.0")
+        );
+        assert_eq!(
+            version_tag_from_image_path(
+                r"C:\Zapretyd\library\versions\1.9.9c\bin\winws.exe --x",
+                r"C:\Zapretyd\library"
+            )
+            .as_deref(),
+            Some("1.9.9c")
+        );
     }
 }
