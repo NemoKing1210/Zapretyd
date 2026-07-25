@@ -19,10 +19,24 @@ import {
   Stack,
   Typography,
 } from '@mui/material';
+import { alpha, type Theme } from '@mui/material/styles';
 import { useEffect, useState } from 'react';
 import type { InstalledVersion, ServiceStatus, StrategyInfo } from '../../../shared/api/zapretyd';
 import { useTranslation } from '../../../shared/i18n';
 import type { TranslationKey } from '../../../shared/i18n/locales/en';
+
+const runningActionSx = {
+  borderColor: (theme: Theme) => alpha(theme.palette.primary.contrastText, 0.45),
+  color: 'primary.contrastText',
+  '&:hover': {
+    borderColor: (theme: Theme) => alpha(theme.palette.primary.contrastText, 0.75),
+    bgcolor: (theme: Theme) => alpha(theme.palette.primary.contrastText, 0.1),
+  },
+  '&.Mui-disabled': {
+    borderColor: (theme: Theme) => alpha(theme.palette.primary.contrastText, 0.2),
+    color: (theme: Theme) => alpha(theme.palette.primary.contrastText, 0.4),
+  },
+} as const;
 
 function StatusDot({ active, pulse }: { active: boolean; pulse?: boolean }) {
   return (
@@ -132,7 +146,6 @@ export function OverviewPage({
   const picked = strategies.find((item) => item.name === strategy);
   const running = Boolean(status?.serviceRunning && status.winwsRunning);
   const statusReady = status !== undefined;
-  const assignLocked = statusReady && !status.isAdmin;
   const message = status?.messageCode ? t(status.messageCode as TranslationKey) : '';
 
   return (
@@ -178,7 +191,10 @@ export function OverviewPage({
                   sx={{
                     mb: 2,
                     ...(running
-                      ? { bgcolor: 'rgba(255,255,255,0.22)', color: 'inherit' }
+                      ? {
+                          bgcolor: (theme) => alpha(theme.palette.primary.contrastText, 0.16),
+                          color: 'primary.contrastText',
+                        }
                       : {}),
                   }}
                 />
@@ -199,18 +215,7 @@ export function OverviewPage({
                     }
                     disabled={!status.serviceRunning || !status.isAdmin || serviceBusy}
                     onClick={onStop}
-                    sx={
-                      running
-                        ? {
-                            borderColor: 'rgba(255,255,255,0.45)',
-                            color: 'inherit',
-                            '&:hover': {
-                              borderColor: 'rgba(255,255,255,0.7)',
-                              bgcolor: 'rgba(255,255,255,0.08)',
-                            },
-                          }
-                        : undefined
-                    }
+                    sx={running ? runningActionSx : undefined}
                   >
                     {t('overview.stop')}
                   </Button>
@@ -226,18 +231,7 @@ export function OverviewPage({
                     }
                     disabled={!status.serviceExists || !status.isAdmin || serviceBusy}
                     onClick={onRemove}
-                    sx={
-                      running
-                        ? {
-                            borderColor: 'rgba(255,255,255,0.45)',
-                            color: 'inherit',
-                            '&:hover': {
-                              borderColor: 'rgba(255,255,255,0.7)',
-                              bgcolor: 'rgba(255,255,255,0.08)',
-                            },
-                          }
-                        : undefined
-                    }
+                    sx={running ? runningActionSx : undefined}
                   >
                     {t('overview.removeService')}
                   </Button>
@@ -320,112 +314,107 @@ export function OverviewPage({
         </Alert>
       )}
 
-      <Card
-        aria-disabled={assignLocked || undefined}
-        sx={{
-          opacity: assignLocked ? 0.5 : 1,
-          transition: (theme) => theme.transitions.create('opacity', { duration: 200 }),
-        }}
-      >
-        <CardContent>
-          <Stack
-            spacing={2}
-            sx={{ pointerEvents: assignLocked ? 'none' : 'auto' }}
-            aria-hidden={assignLocked || undefined}
-          >
-            <Box>
-              <Typography variant="overline" color="text.secondary">
-                {t('overview.assignStrategy')}
-              </Typography>
-              <Typography color="text.secondary" variant="body2" sx={{ mt: 0.5 }}>
-                {t('overview.assignStrategyHint')}
-              </Typography>
-            </Box>
-            <FormControl fullWidth disabled={assignLocked || serviceBusy}>
-              <InputLabel>{t('overview.version')}</InputLabel>
-              <Select
-                label={t('overview.version')}
-                value={version}
-                renderValue={(selected) => {
-                  if (!selected) return '';
-                  return (
-                    <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 1 }}>
-                      {selected}
-                      {selected === latestTag && (
+      {statusReady && status.isAdmin && (
+        <Card>
+          <CardContent>
+            <Stack spacing={2}>
+              <Box>
+                <Typography variant="overline" color="text.secondary">
+                  {t('overview.assignStrategy')}
+                </Typography>
+                <Typography color="text.secondary" variant="body2" sx={{ mt: 0.5 }}>
+                  {t('overview.assignStrategyHint')}
+                </Typography>
+              </Box>
+              <FormControl fullWidth disabled={serviceBusy}>
+                <InputLabel>{t('overview.version')}</InputLabel>
+                <Select
+                  label={t('overview.version')}
+                  value={version}
+                  renderValue={(selected) => {
+                    if (!selected) return '';
+                    return (
+                      <Box
+                        component="span"
+                        sx={{ display: 'inline-flex', alignItems: 'center', gap: 1 }}
+                      >
+                        {selected}
+                        {selected === latestTag && (
+                          <Chip
+                            size="small"
+                            color="primary"
+                            label={t('overview.latestVersion')}
+                            sx={{ pointerEvents: 'none' }}
+                          />
+                        )}
+                      </Box>
+                    );
+                  }}
+                  onChange={(event) => {
+                    setVersion(String(event.target.value));
+                    setStrategy('');
+                  }}
+                >
+                  <MenuItem value="">
+                    <em>{t('overview.selectVersion')}</em>
+                  </MenuItem>
+                  {versions.map((item) => (
+                    <MenuItem key={item.tag} value={item.tag}>
+                      {item.tag}
+                      {latestTag && item.tag === latestTag && (
                         <Chip
                           size="small"
                           color="primary"
                           label={t('overview.latestVersion')}
-                          sx={{ pointerEvents: 'none' }}
+                          sx={{ ml: 1, pointerEvents: 'none' }}
                         />
                       )}
-                    </Box>
-                  );
-                }}
-                onChange={(event) => {
-                  setVersion(String(event.target.value));
-                  setStrategy('');
-                }}
-              >
-                <MenuItem value="">
-                  <em>{t('overview.selectVersion')}</em>
-                </MenuItem>
-                {versions.map((item) => (
-                  <MenuItem key={item.tag} value={item.tag}>
-                    {item.tag}
-                    {latestTag && item.tag === latestTag && (
-                      <Chip
-                        size="small"
-                        color="primary"
-                        label={t('overview.latestVersion')}
-                        sx={{ ml: 1, pointerEvents: 'none' }}
-                      />
-                    )}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-            <Box>
-              <FormControl fullWidth disabled={assignLocked || !version || serviceBusy}>
-                <InputLabel>{t('overview.strategyLabel')}</InputLabel>
-                <Select
-                  label={t('overview.strategyLabel')}
-                  value={strategy}
-                  onChange={(event) => setStrategy(String(event.target.value))}
-                >
-                  {strategies.map((item) => (
-                    <MenuItem key={item.name} value={item.name}>
-                      {item.name}
                     </MenuItem>
                   ))}
                 </Select>
               </FormControl>
-              {strategiesLoading && (
-                <Stack direction="row" spacing={1} alignItems="center" mt={1}>
-                  <CircularProgress size={14} />
-                  <Typography variant="caption" color="text.secondary">
-                    {t('overview.loadingStrategies')}
-                  </Typography>
-                </Stack>
-              )}
-            </Box>
-            <Button
-              startIcon={
-                serviceBusy ? (
-                  <CircularProgress size={18} color="inherit" />
-                ) : (
-                  <PlayArrowOutlined />
-                )
-              }
-              disabled={assignLocked || !picked || serviceBusy || strategiesLoading}
-              onClick={() => setConfirm(true)}
-              sx={{ alignSelf: 'flex-start' }}
-            >
-              {t('overview.replaceAndStart')}
-            </Button>
-          </Stack>
-        </CardContent>
-      </Card>
+              <Box>
+                <FormControl fullWidth disabled={!version || serviceBusy}>
+                  <InputLabel>{t('overview.strategyLabel')}</InputLabel>
+                  <Select
+                    label={t('overview.strategyLabel')}
+                    value={strategy}
+                    onChange={(event) => setStrategy(String(event.target.value))}
+                  >
+                    {strategies.map((item) => (
+                      <MenuItem key={item.name} value={item.name}>
+                        {item.name}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+                {strategiesLoading && (
+                  <Stack direction="row" spacing={1} alignItems="center" mt={1}>
+                    <CircularProgress size={14} />
+                    <Typography variant="caption" color="text.secondary">
+                      {t('overview.loadingStrategies')}
+                    </Typography>
+                  </Stack>
+                )}
+              </Box>
+              <Button
+                startIcon={
+                  serviceBusy ? (
+                    <CircularProgress size={18} color="inherit" />
+                  ) : (
+                    <PlayArrowOutlined />
+                  )
+                }
+                disabled={!picked || serviceBusy || strategiesLoading}
+                onClick={() => setConfirm(true)}
+                sx={{ alignSelf: 'flex-start' }}
+              >
+                {t('overview.replaceAndStart')}
+              </Button>
+            </Stack>
+          </CardContent>
+        </Card>
+      )}
 
       <Dialog open={confirm} onClose={() => !serviceBusy && setConfirm(false)}>
         <DialogTitle>{t('overview.confirmTitle')}</DialogTitle>

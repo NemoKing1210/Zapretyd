@@ -1,5 +1,5 @@
 use crate::{
-    app::{get_system_locale, relaunch_as_admin, AppState},
+    app::{elevate_self, get_system_locale, AppState},
     library::{list_versions_at, open_directory},
     service::{get_service_status, stop_service},
 };
@@ -409,7 +409,9 @@ pub fn init_tray<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
                 let _ = rebuild_menu(app);
             }
             "relaunch_admin" => {
-                let _ = relaunch_as_admin();
+                if elevate_self().is_ok() {
+                    app.exit(0);
+                }
             }
             "open_library" => {
                 if let Some(path) = app.try_state::<AppState>().and_then(|state| {

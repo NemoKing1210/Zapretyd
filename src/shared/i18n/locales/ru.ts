@@ -8,8 +8,6 @@ export const ru: Record<TranslationKey, string> = {
   'app.subtitle': 'менеджер zapret',
   'shell.serviceRunning': 'Служба работает',
   'shell.serviceStopped': 'Служба остановлена',
-  'shell.strategy': '{{name}}',
-  'shell.adminGranted': 'Админ',
   'shell.adminMissing': 'Без прав администратора',
   'shell.checkingReleases': 'Проверка релизов…',
   'shell.downloadingVersion': 'Скачивание…',

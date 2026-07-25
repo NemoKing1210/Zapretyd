@@ -6,8 +6,6 @@ export const en = {
   'app.subtitle': 'zapret manager',
   'shell.serviceRunning': 'Service running',
   'shell.serviceStopped': 'Service stopped',
-  'shell.strategy': '{{name}}',
-  'shell.adminGranted': 'Admin',
   'shell.adminMissing': 'No administrator rights',
   'shell.checkingReleases': 'Checking releases…',
   'shell.downloadingVersion': 'Downloading…',

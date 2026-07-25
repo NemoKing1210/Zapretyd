@@ -92,19 +92,41 @@ pub fn get_system_locale() -> String {
 pub fn is_administrator() -> bool {
     administrator()
 }
-#[tauri::command]
-pub fn relaunch_as_admin() -> Result<(), String> {
+/// Elevate a new instance via UAC. Does not exit the current process.
+pub fn elevate_self() -> Result<(), String> {
     let executable = std::env::current_exe().map_err(|e| e.to_string())?;
-    std::process::Command::new("powershell")
-        .args([
-            "-NoProfile",
-            "-Command",
-            &format!(
-                "Start-Process -FilePath '{}' -Verb RunAs",
-                executable.display()
-            ),
-        ])
-        .spawn()
-        .map_err(|e| e.to_string())?;
+    let path: Vec<u16> = {
+        use std::os::windows::ffi::OsStrExt;
+        executable
+            .as_os_str()
+            .encode_wide()
+            .chain(std::iter::once(0))
+            .collect()
+    };
+    // ShellExecuteW with "runas" shows UAC without spawning a PowerShell console.
+    let result = unsafe {
+        use windows::core::{w, PCWSTR};
+        use windows::Win32::UI::Shell::ShellExecuteW;
+        use windows::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
+        ShellExecuteW(
+            None,
+            w!("runas"),
+            PCWSTR(path.as_ptr()),
+            None,
+            None,
+            SW_SHOWNORMAL,
+        )
+    };
+    // Per MSDN, values > 32 mean success; ≤ 32 means failure (incl. UAC cancel).
+    if result.0 as isize <= 32 {
+        return Err("error.service.adminRequired".into());
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub fn relaunch_as_admin(app: AppHandle) -> Result<(), String> {
+    elevate_self()?;
+    app.exit(0);
     Ok(())
 }

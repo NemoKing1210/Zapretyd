@@ -169,27 +169,24 @@ export function AppShell({
               icon={running ? <PlayArrowOutlined /> : <StopOutlined />}
               color={running ? 'success' : 'default'}
               variant={running ? 'filled' : 'outlined'}
-              label={running ? t('shell.serviceRunning') : t('shell.serviceStopped')}
+              label={
+                running
+                  ? (status?.activeStrategy ?? t('shell.serviceRunning'))
+                  : t('shell.serviceStopped')
+              }
+              sx={running && status?.activeStrategy ? { maxWidth: 280 } : undefined}
             />
-            {status?.activeStrategy && (
+            {status && !status.isAdmin && (
               <Chip
                 size="small"
                 clickable
                 onClick={() => onPage('overview')}
+                icon={<AdminPanelSettingsOutlined />}
+                color="warning"
                 variant="outlined"
-                label={t('shell.strategy', { name: status.activeStrategy })}
-                sx={{ maxWidth: 280 }}
+                label={t('shell.adminMissing')}
               />
             )}
-            <Chip
-              size="small"
-              clickable
-              onClick={() => onPage('overview')}
-              icon={<AdminPanelSettingsOutlined />}
-              color={status?.isAdmin ? 'secondary' : 'warning'}
-              variant="outlined"
-              label={status?.isAdmin ? t('shell.adminGranted') : t('shell.adminMissing')}
-            />
           </Stack>
         </Toolbar>
       </AppBar>
