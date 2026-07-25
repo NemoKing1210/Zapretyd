@@ -67,9 +67,12 @@ pub fn release_to_info(release: &GithubRelease, installed: &[String]) -> Option<
 
 fn cached_catalog(state: &AppState, error: Option<String>) -> Option<ReleaseCatalog> {
     let settings = state.settings.lock().ok()?;
+    let latest_tag = settings.cached_latest_tag.clone()?;
+    let installed = installed_tags_for(state).unwrap_or_default();
     Some(ReleaseCatalog {
-        latest_tag: settings.cached_latest_tag.clone()?,
+        latest_tag: latest_tag.clone(),
         from_cache: true,
+        is_newer_than_installed: !installed.iter().any(|tag| tag == &latest_tag),
         error,
     })
 }
@@ -100,6 +103,8 @@ async fn fetch_and_store_catalog(state: &AppState) -> Result<ReleaseCatalog, Str
         .map(str::to_owned);
     let latest: GithubRelease = latest_response.json().await.map_err(|e| e.to_string())?;
     let latest_tag = latest.tag_name;
+    let installed = installed_tags_for(state).unwrap_or_default();
+    let is_newer_than_installed = !installed.iter().any(|tag| tag == &latest_tag);
 
     if let Ok(mut settings) = state.settings.lock() {
         settings.cached_latest_tag = Some(latest_tag.clone());
@@ -111,6 +116,7 @@ async fn fetch_and_store_catalog(state: &AppState) -> Result<ReleaseCatalog, Str
     Ok(ReleaseCatalog {
         latest_tag,
         from_cache: false,
+        is_newer_than_installed,
         error: None,
     })
 }

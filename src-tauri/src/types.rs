@@ -26,6 +26,7 @@ fn default_locale() -> String {
 pub struct ReleaseCatalog {
     pub latest_tag: String,
     pub from_cache: bool,
+    pub is_newer_than_installed: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
 }

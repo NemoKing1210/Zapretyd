@@ -20,6 +20,7 @@ export function normalizeThemeMode(theme: string | undefined): ThemeMode {
 export type ReleaseCatalog = {
   latestTag: string;
   fromCache: boolean;
+  isNewerThanInstalled: boolean;
   error?: string;
 };
 export type ReleaseInfo = {

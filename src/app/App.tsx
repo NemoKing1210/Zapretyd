@@ -102,7 +102,10 @@ function AppBody() {
       } else {
         setReleasesNetwork('ok');
         setReleasesNetworkError(undefined);
-        if (!previousTag || previousTag !== catalog.latestTag) {
+        if (
+          catalog.isNewerThanInstalled &&
+          (!previousTag || previousTag !== catalog.latestTag)
+        ) {
           showToastRef.current({
             title: tRef.current('toast.newVersionAvailable.title'),
             description: tRef.current('toast.newVersionAvailable.body', {
@@ -144,6 +147,8 @@ function AppBody() {
       .then(async (initial) => {
         if (cancelled) return;
         setSettings(initial);
+        // Keep ref in sync before catalog refresh — setState alone does not update it yet.
+        settingsRef.current = initial;
         setMode(normalizeThemeMode(initial.theme));
         await refreshCatalog();
       })
