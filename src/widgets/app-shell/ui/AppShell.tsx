@@ -14,7 +14,6 @@ import {
 } from '@mui/icons-material';
 import {
   AppBar,
-  Badge,
   Box,
   Chip,
   CircularProgress,
@@ -265,12 +264,13 @@ export function AppShell({
               const label = t(item.labelKey);
               const showVersionsBadge = item.key === 'versions' && installedCount > 0;
               const showLogsBadge = item.key === 'logs' && errorCount > 0;
-              const badgeCount = showVersionsBadge
-                ? installedCount
-                : showLogsBadge
-                  ? errorCount
-                  : 0;
-              const badgeColor = showLogsBadge ? 'error' : 'primary';
+              const badgeCount = collapsed
+                ? 0
+                : showVersionsBadge
+                  ? installedCount
+                  : showLogsBadge
+                    ? errorCount
+                    : 0;
               const button = (
                 <ListItemButton
                   key={item.key}
@@ -292,13 +292,7 @@ export function AppShell({
                       color: 'inherit',
                     }}
                   >
-                    {collapsed && badgeCount > 0 ? (
-                      <Badge badgeContent={badgeCount} color={badgeColor} max={99}>
-                        {item.icon}
-                      </Badge>
-                    ) : (
-                      item.icon
-                    )}
+                    {item.icon}
                   </ListItemIcon>
                   {!collapsed && (
                     <ListItemText
