@@ -7,10 +7,14 @@ export const en = {
   'shell.serviceRunning': 'Service running',
   'shell.serviceStopped': 'Service stopped',
   'shell.adminMissing': 'No administrator rights',
+  'shell.adminMissingHint': 'Relaunch Zapretyd as administrator',
   'shell.checkingReleases': 'Checking releases…',
   'shell.downloadingVersion': 'Downloading…',
   'shell.latestVersion': 'Latest version {{tag}}',
+  'shell.latestVersionHint':
+    'The latest available zapret-discord-youtube release at the moment',
   'shell.appVersion': 'v{{version}}',
+  'shell.appVersionHint': 'Open the Zapretyd GitHub repository',
   'shell.collapseSidebar': 'Collapse sidebar',
   'shell.expandSidebar': 'Expand sidebar',
 
@@ -26,10 +30,6 @@ export const en = {
   'toast.themeChanged.body': 'The app appearance now follows your selected theme.',
   'toast.languageChanged.title': 'Language updated',
   'toast.languageChanged.body': 'The interface language has been changed.',
-  'toast.libraryConfigured.title': 'Library folder saved',
-  'toast.libraryConfigured.body': 'Installed versions will be stored in the selected folder.',
-  'toast.libraryPathChanged.title': 'Library folder updated',
-  'toast.libraryPathChanged.body': 'Installed versions will now be stored in the new folder.',
   'toast.serviceActivated.title': 'Service started',
   'toast.serviceActivated.body': 'The zapret service was created and started with the selected strategy.',
   'toast.serviceStopped.title': 'Service stopped',
@@ -130,7 +130,7 @@ export const en = {
   'service.notInstalled': 'zapret service is not installed',
 
   'settings.title': 'Settings',
-  'settings.subtitle': 'Appearance, startup, library path, and about Zapretyd.',
+  'settings.subtitle': 'Appearance, startup, and about Zapretyd.',
   'settings.appearanceTitle': 'Appearance',
   'settings.appearanceHint': 'Theme and language for the Zapretyd interface.',
   'settings.theme': 'Theme',
@@ -150,12 +150,6 @@ export const en = {
   'settings.startMinimized': 'Start minimized',
   'settings.startMinimizedHint':
     'When launched at startup, hide the window to the system tray.',
-  'settings.libraryTitle': 'Version library',
-  'settings.libraryHint':
-    'Installed releases are stored here.',
-  'settings.libraryNotSelected': 'Not selected',
-  'settings.changeFolder': 'Change folder',
-  'settings.useAppFolder': 'Store in the app folder',
   'settings.logsTitle': 'Error logs',
   'settings.logsHint':
     'In release builds, errors are written to daily files in this folder (kept for 14 days).',
@@ -183,18 +177,9 @@ export const en = {
   'logs.cachedLatestTagEmpty': 'Not set',
   'logs.clearCachedLatestTag': 'Clear cached latest tag',
 
-  'libraryDialog.title': 'Where should zapret versions be stored?',
-  'libraryDialog.body':
-    'You can keep versions in the app folder, or choose your own path without Cyrillic or special characters (for example {{path}}).',
-  'libraryDialog.folderLabel': 'Library folder',
-  'libraryDialog.chooseFolder': 'Choose folder',
-  'libraryDialog.useAppStorage': 'Store in the app folder',
-  'libraryDialog.save': 'Continue',
-  'libraryDialog.pickerTitle': 'Choose Zapretyd library folder',
-
-  'error.library.pathInvalid': 'Choose a path without Cyrillic or special characters',
+  'error.library.pathInvalid': 'Library path contains invalid characters',
   'error.library.notConfigured': 'Library is not configured',
-  'error.library.chooseFirst': 'Choose a library folder first',
+  'error.library.chooseFirst': 'Library folder is not ready',
   'error.library.versionExists': 'This version is already installed',
   'error.library.versionNotFound': 'Version not found',
   'error.library.cannotRemoveActive': 'Cannot remove the active version',

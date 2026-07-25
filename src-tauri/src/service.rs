@@ -95,6 +95,17 @@ pub fn active_strategy_name() -> Result<Option<String>, String> {
         .map(|value| value.trim().to_string())
         .filter(|s| !s.is_empty()))
 }
+/// Whether a Windows service is registered. Uses `sc` exit code — localized
+/// messages say `Ошибка: 1060:` instead of English `FAILED 1060`.
+fn service_installed(name: &str) -> bool {
+    let mut command = Command::new("sc");
+    hide_console(&mut command)
+        .args(["query", name])
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false)
+}
+
 fn service_running(name: &str) -> bool {
     output("sc", &["query", name]).contains("RUNNING")
 }
@@ -105,7 +116,7 @@ fn process_running(name: &str) -> bool {
 }
 #[tauri::command]
 pub fn get_service_status() -> ServiceStatus {
-    let exists = !output("sc", &["query", "zapret"]).contains("FAILED 1060");
+    let exists = service_installed("zapret");
     ServiceStatus {
         is_admin: administrator(),
         service_exists: exists,
@@ -128,13 +139,7 @@ fn require_admin() -> Result<(), String> {
     }
 }
 fn managed_strategy(path: &str, state: &AppState) -> Result<(), String> {
-    let base = state
-        .settings
-        .lock()
-        .map_err(|e| e.to_string())?
-        .library_path
-        .clone()
-        .ok_or("error.library.notConfigured".to_string())?;
+    let base = crate::library::managed_library_path(&state.config_dir)?;
     let root = Path::new(&base)
         .join("versions")
         .canonicalize()
@@ -394,6 +399,9 @@ start "zapret: test" /min "%BIN%winws.exe" --wf-tcp=80,443,%GameFilterTCP% --wf-
     fn detects_missing_service_exit() {
         assert!(service_missing_detail(
             "sc delete zapret\nexit=1060\nstdout:\n[SC] OpenService FAILED 1060:"
+        ));
+        assert!(service_missing_detail(
+            "sc query zapret\nexit=1060\nstdout:\n[SC] EnumQueryServicesStatus:OpenService: Ошибка: 1060:"
         ));
         assert!(!service_missing_detail(
             "sc delete zapret\nexit=5\nstdout:\nAccess is denied."

@@ -9,10 +9,14 @@ export const ru: Record<TranslationKey, string> = {
   'shell.serviceRunning': 'Служба работает',
   'shell.serviceStopped': 'Служба остановлена',
   'shell.adminMissing': 'Без прав администратора',
+  'shell.adminMissingHint': 'Перезапустить Zapretyd от имени администратора',
   'shell.checkingReleases': 'Проверка релизов…',
   'shell.downloadingVersion': 'Скачивание…',
   'shell.latestVersion': 'Последняя версия {{tag}}',
+  'shell.latestVersionHint':
+    'Последняя доступная версия zapret-discord-youtube на данный момент',
   'shell.appVersion': 'v{{version}}',
+  'shell.appVersionHint': 'Открыть репозиторий Zapretyd на GitHub',
   'shell.collapseSidebar': 'Свернуть панель',
   'shell.expandSidebar': 'Развернуть панель',
 
@@ -28,10 +32,6 @@ export const ru: Record<TranslationKey, string> = {
   'toast.themeChanged.body': 'Внешний вид приложения соответствует выбранной теме.',
   'toast.languageChanged.title': 'Язык обновлён',
   'toast.languageChanged.body': 'Язык интерфейса изменён.',
-  'toast.libraryConfigured.title': 'Папка библиотеки сохранена',
-  'toast.libraryConfigured.body': 'Установленные версии будут храниться в выбранной папке.',
-  'toast.libraryPathChanged.title': 'Папка библиотеки обновлена',
-  'toast.libraryPathChanged.body': 'Установленные версии теперь будут храниться в новой папке.',
   'toast.serviceActivated.title': 'Служба запущена',
   'toast.serviceActivated.body': 'Служба zapret создана и запущена с выбранной стратегией.',
   'toast.serviceStopped.title': 'Служба остановлена',
@@ -132,7 +132,7 @@ export const ru: Record<TranslationKey, string> = {
   'service.notInstalled': 'Служба zapret не установлена',
 
   'settings.title': 'Настройки',
-  'settings.subtitle': 'Оформление, автозапуск, папка библиотеки и сведения о Zapretyd.',
+  'settings.subtitle': 'Оформление, автозапуск и сведения о Zapretyd.',
   'settings.appearanceTitle': 'Оформление',
   'settings.appearanceHint': 'Тема и язык интерфейса Zapretyd.',
   'settings.theme': 'Тема',
@@ -152,12 +152,6 @@ export const ru: Record<TranslationKey, string> = {
   'settings.startMinimized': 'Запускать свёрнутым',
   'settings.startMinimizedHint':
     'При автозапуске скрывать окно в системный трей.',
-  'settings.libraryTitle': 'Библиотека версий',
-  'settings.libraryHint':
-    'Здесь хранятся установленные релизы.',
-  'settings.libraryNotSelected': 'Не выбрана',
-  'settings.changeFolder': 'Изменить папку',
-  'settings.useAppFolder': 'Хранить в папке приложения',
   'settings.logsTitle': 'Логи ошибок',
   'settings.logsHint':
     'В release-сборке ошибки пишутся в дневные файлы в этой папке (хранятся 14 дней).',
@@ -185,18 +179,9 @@ export const ru: Record<TranslationKey, string> = {
   'logs.cachedLatestTagEmpty': 'Не задан',
   'logs.clearCachedLatestTag': 'Очистить сохранённый тег',
 
-  'libraryDialog.title': 'Где хранить версии zapret?',
-  'libraryDialog.body':
-    'Можно хранить версии в папке приложения или выбрать свой путь без кириллицы и специальных символов (например {{path}}).',
-  'libraryDialog.folderLabel': 'Папка библиотеки',
-  'libraryDialog.chooseFolder': 'Выбрать папку',
-  'libraryDialog.useAppStorage': 'Хранить в папке приложения',
-  'libraryDialog.save': 'Продолжить',
-  'libraryDialog.pickerTitle': 'Выберите папку библиотеки Zapretyd',
-
-  'error.library.pathInvalid': 'Выберите путь без кириллицы и специальных символов',
+  'error.library.pathInvalid': 'Путь библиотеки содержит недопустимые символы',
   'error.library.notConfigured': 'Не настроена библиотека',
-  'error.library.chooseFirst': 'Сначала выберите папку библиотеки',
+  'error.library.chooseFirst': 'Папка библиотеки не готова',
   'error.library.versionExists': 'Эта версия уже установлена',
   'error.library.versionNotFound': 'Версия не найдена',
   'error.library.cannotRemoveActive': 'Нельзя удалить активную версию',

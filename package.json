@@ -1,7 +1,7 @@
 {
-  "name": "zapretyd",
+  "name": "Zapretyd",
   "private": false,
-  "version": "0.4.30",
+  "version": "0.4.37",
   "author": {
     "name": "NemoKing",
     "url": "https://github.com/NemoKing1210"
@@ -28,7 +28,6 @@
     "@mui/material": "^7.0.0",
     "@tauri-apps/api": "^2.0.0",
     "@tauri-apps/plugin-autostart": "^2.5.1",
-    "@tauri-apps/plugin-dialog": "^2.0.0",
     "@tauri-apps/plugin-opener": "^2.0.0",
     "@uiw/react-codemirror": "^4.25.11",
     "country-flag-icons": "^1.6.20",

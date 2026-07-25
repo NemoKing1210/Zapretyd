@@ -32,15 +32,8 @@ fn map_http_status_error(error: reqwest::Error) -> String {
 }
 
 fn installed_tags_for(state: &AppState) -> Result<Vec<String>, String> {
-    state
-        .settings
-        .lock()
-        .map_err(|e| e.to_string())?
-        .library_path
-        .as_deref()
-        .map(library::installed_tags)
-        .transpose()
-        .map(|tags| tags.unwrap_or_default())
+    let base = library::managed_library_path(&state.config_dir)?;
+    library::installed_tags(&base)
 }
 
 pub fn release_to_info(release: &GithubRelease, installed: &[String]) -> Option<ReleaseInfo> {

@@ -14,7 +14,6 @@ import {
   installGlobalErrorHandlers,
   reportCaughtError,
 } from '../shared/lib/errorLog';
-import { pathsEqual } from '../shared/lib/format';
 import { PageTransition } from '../shared/ui/PageTransition';
 import { ErrorAlert } from '../shared/ui/ErrorAlert';
 import { ToastProvider, useToast } from '../shared/ui/toast';
@@ -22,7 +21,6 @@ import type { ShowToastOptions } from '../shared/ui/toast';
 import { theme } from './theme';
 import { WindowChromeSync } from './WindowChromeSync';
 import { AppShell, type PageKey } from '../widgets/app-shell/ui/AppShell';
-import { LibraryPathDialog } from '../features/library-path/ui/LibraryPathDialog';
 import { OverviewPage } from '../pages/overview/ui/OverviewPage';
 import { VersionsPage } from '../pages/versions/ui/VersionsPage';
 import { SettingsPage } from '../pages/settings/ui/SettingsPage';
@@ -44,7 +42,6 @@ function AppBody() {
   const [releasesNetwork, setReleasesNetwork] = useState<'ok' | 'offline' | 'unreachable'>('ok');
   const [releasesNetworkError, setReleasesNetworkError] = useState<string>();
   const [catalogLoading, setCatalogLoading] = useState(true);
-  const [defaultLibraryPath, setDefaultLibraryPath] = useState<string>();
   const settingsRef = useRef(settings);
   const translateErrorRef = useRef(translateError);
   const tRef = useRef(t);
@@ -143,20 +140,19 @@ function AppBody() {
   useEffect(() => installGlobalErrorHandlers(), []);
   useEffect(() => {
     let cancelled = false;
-    api.defaultLibraryPath().then(setDefaultLibraryPath).catch(() => undefined);
-    api.settings()
+    api
+      .settings()
       .then(async (initial) => {
         if (cancelled) return;
         setSettings(initial);
         // Keep ref in sync before catalog refresh — setState alone does not update it yet.
         settingsRef.current = initial;
         setMode(normalizeThemeMode(initial.theme));
-        await refreshCatalog();
+        await Promise.all([refresh(), refreshCatalog()]);
       })
       .catch((cause) => {
         if (!cancelled) showError(cause);
       });
-    void refresh();
     return () => {
       cancelled = true;
     };
@@ -180,12 +176,6 @@ function AppBody() {
     };
   }, [refreshCatalog]);
   useEffect(() => {
-    if (!settings?.libraryPath) return;
-    void refresh();
-    // Re-run only when the library path changes, not on every settings/callback identity change.
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional libraryPath-only deps
-  }, [settings?.libraryPath]);
-  useEffect(() => {
     if (!import.meta.env.DEV && page === 'logs') setPage('overview');
   }, [page]);
   useEffect(() => {
@@ -204,15 +194,11 @@ function AppBody() {
   }, [page]);
   const saveSettings = async (
     next: AppSettings,
-    toastKey:
-      | 'settingsSaved'
-      | 'libraryConfigured'
-      | 'libraryPathChanged'
-      | 'themeChanged'
-      | 'languageChanged' = 'settingsSaved',
+    toastKey: 'settingsSaved' | 'themeChanged' | 'languageChanged' = 'settingsSaved',
   ) => {
     await api.saveSettings(next);
-    setSettings(next);
+    const saved = await api.settings();
+    setSettings(saved);
     await refresh();
     showToast({
       title: t(`toast.${toastKey}.title`),
@@ -274,9 +260,6 @@ function AppBody() {
     if (next === 'versions') setVersionsTab('installed');
   }, []);
   if (!settings) return null;
-  const useAppLibrary = Boolean(
-    defaultLibraryPath && pathsEqual(settings.libraryPath, defaultLibraryPath),
-  );
   const content =
     page === 'overview' ? (
       <OverviewPage
@@ -323,7 +306,7 @@ function AppBody() {
         versions={versions}
         latestTag={settings.cachedLatestTag}
         libraryPath={settings.libraryPath}
-        shortenPaths={useAppLibrary}
+        shortenPaths
         releasesOnline={releasesNetwork !== 'offline'}
         networkStatus={releasesNetwork}
         networkError={releasesNetworkError}
@@ -351,9 +334,9 @@ function AppBody() {
       <LogsPage
         cachedLatestTag={settings.cachedLatestTag}
         onClearCachedLatestTag={async () => {
-          const next = { ...settings, cachedLatestTag: undefined };
-          await api.saveSettings(next);
-          setSettings(next);
+          await api.saveSettings({ ...settings, cachedLatestTag: undefined });
+          const saved = await api.settings();
+          setSettings(saved);
           showToast({
             title: t('toast.debug.title'),
             description: t('toast.debug.cachedLatestTagCleared.body'),
@@ -363,7 +346,6 @@ function AppBody() {
     ) : (
       <SettingsPage
         settings={settings}
-        defaultLibraryPath={defaultLibraryPath}
         onSave={(next, reason) =>
           saveSettings(
             next,
@@ -371,9 +353,7 @@ function AppBody() {
               ? 'themeChanged'
               : reason === 'locale'
                 ? 'languageChanged'
-                : reason === 'library'
-                  ? 'libraryPathChanged'
-                  : 'settingsSaved',
+                : 'settingsSaved',
           )
         }
       />
@@ -390,6 +370,9 @@ function AppBody() {
         latestTag={settings.cachedLatestTag}
         latestInstalled={versions.some((version) => version.tag === settings.cachedLatestTag)}
         onOpenLatestVersion={openAllVersions}
+        onRelaunchAsAdmin={() =>
+          serviceAction(api.relaunchAsAdmin, undefined, 'service.relaunchAdmin')
+        }
       >
         <PageTransition pageKey={page}>
           {error && page !== 'versions' && page !== 'logs' && (
@@ -404,12 +387,6 @@ function AppBody() {
           {content}
         </PageTransition>
       </AppShell>
-      <LibraryPathDialog
-        settings={settings}
-        onSave={async (libraryPath) =>
-          saveSettings({ ...settings, libraryPath }, 'libraryConfigured')
-        }
-      />
     </>
   );
 }

@@ -16,7 +16,6 @@ const AUTOSTART_ARG: &str = "--autostart";
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let app = tauri::Builder::default()
-        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(
             tauri_plugin_autostart::Builder::new()
@@ -59,7 +58,6 @@ pub fn run() {
             releases::refresh_release_catalog,
             releases::list_releases,
             releases::get_release,
-            library::get_default_library_path,
             library::list_installed_versions,
             library::install_release,
             library::remove_version,

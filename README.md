@@ -7,9 +7,9 @@ Zapretyd downloads official GitHub releases, keeps each version in an isolated f
 ## Features
 
 - **Release management** — check for updates, download, and install the latest zapret ZIP from GitHub
-- **Version library** — store multiple releases side by side under a single folder
+- **Version library** — store multiple releases side by side in the app library folder
 - **Overview** — see service, WinDivert, and `winws.exe` status, then pick a strategy and create, start, stop, or remove the `zapret` Windows service
-- **Safe paths** — library location must use ASCII characters only (e.g. `C:\Zapret`)
+- **Safe paths** — the library uses an ASCII-safe folder under the app data directory (or `C:\Zapretyd` as a fallback)
 
 ## Requirements
 
@@ -27,11 +27,7 @@ npm install
 npm run tauri dev
 ```
 
-On first launch, choose a library folder for downloaded versions. Use a path without spaces, Cyrillic, or special characters — for example:
-
-```
-C:\Zapret
-```
+Versions are stored automatically under the app library folder (`<app_config_dir>\library`, or `C:\Zapretyd` when that path is not ASCII-safe). There is no folder picker on first launch.
 
 ## Scripts
 
@@ -47,7 +43,7 @@ C:\Zapret
 
 ## How it works
 
-1. **Library** — releases are extracted to `<library>\versions\<tag>\`
+1. **Library** — releases are extracted to `<app_library>\versions\<tag>\`
 2. **Strategies** — each version ships with `.bat` strategy files; Zapretyd lists them per version
 3. **Overview** — when you activate a strategy, Zapretyd parses `winws.exe` arguments from the batch file, registers the `zapret` service, and starts it
 4. **Updates** — the app queries GitHub Releases for `Flowseal/zapret-discord-youtube` and can auto-check once per day while open

@@ -67,7 +67,6 @@ export type ServiceStatus = {
 export const api = {
   settings: () => invoke<AppSettings>('get_settings'),
   saveSettings: (settings: AppSettings) => invoke<void>('save_settings', { settings }),
-  defaultLibraryPath: () => invoke<string>('get_default_library_path'),
   systemLocale: () => invoke<string>('get_system_locale'),
   isAdmin: () => invoke<boolean>('is_administrator'),
   relaunchAsAdmin: () => invoke<void>('relaunch_as_admin'),

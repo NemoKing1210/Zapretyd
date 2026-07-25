@@ -15,7 +15,7 @@ impl AppState {
     pub fn load(dir: PathBuf) -> Result<Self, String> {
         fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
         let config_path = dir.join("settings.json");
-        let settings = fs::read_to_string(&config_path)
+        let mut settings = fs::read_to_string(&config_path)
             .ok()
             .and_then(|s| serde_json::from_str(&s).ok())
             .unwrap_or(AppSettings {
@@ -23,11 +23,16 @@ impl AppState {
                 locale: "system".into(),
                 ..Default::default()
             });
-        Ok(Self {
+        let migrated = crate::library::ensure_settings_library_path(&dir, &mut settings)?;
+        let state = Self {
             config_dir: dir,
             config_path,
-            settings: Mutex::new(settings),
-        })
+            settings: Mutex::new(settings.clone()),
+        };
+        if migrated {
+            state.persist(&settings)?;
+        }
+        Ok(state)
     }
     pub(crate) fn persist(&self, settings: &AppSettings) -> Result<(), String> {
         fs::write(
@@ -43,16 +48,16 @@ pub fn get_settings(state: State<AppState>) -> Result<AppSettings, String> {
 }
 #[tauri::command]
 pub fn save_settings(
-    settings: AppSettings,
+    mut settings: AppSettings,
     state: State<AppState>,
     app: AppHandle,
 ) -> Result<(), String> {
-    if let Some(path) = &settings.library_path {
-        let path = crate::library::validate_library_path(path)?;
-        fs::create_dir_all(path.join("versions")).map_err(|e| e.to_string())?;
-    }
-    sync_autostart(&app, settings.autostart)?;
+    // Library path is fixed to the app folder; ignore any client-supplied path.
+    crate::library::ensure_settings_library_path(&state.config_dir, &mut settings)?;
     let mut saved = state.settings.lock().map_err(|e| e.to_string())?;
+    if saved.autostart != settings.autostart {
+        sync_autostart(&app, settings.autostart)?;
+    }
     state.persist(&settings)?;
     *saved = settings;
     drop(saved);
@@ -64,13 +69,15 @@ fn sync_autostart(app: &AppHandle, enabled: bool) -> Result<(), String> {
     use tauri_plugin_autostart::ManagerExt;
     let launcher = app.autolaunch();
     if enabled {
-        launcher
+        return launcher
             .enable()
-            .map_err(|_| "error.autostart.failed".to_string())?;
-    } else {
+            .map_err(|e| format!("error.autostart.failed|{e}"));
+    }
+    // auto-launch::disable errors when the Run key value was never created.
+    if launcher.is_enabled().unwrap_or(false) {
         launcher
             .disable()
-            .map_err(|_| "error.autostart.failed".to_string())?;
+            .map_err(|e| format!("error.autostart.failed|{e}"))?;
     }
     Ok(())
 }

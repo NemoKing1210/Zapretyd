@@ -23,7 +23,7 @@ describe('pathsEqual', () => {
 });
 
 describe('formatVersionPath', () => {
-  const library = String.raw`C:\Users\nemok\AppData\Roaming\dev.zapretyd.desktop\library`;
+  const library = String.raw`C:\Users\user\AppData\Roaming\Zapretyd\library`;
   const version = String.raw`${library}\versions\1.10.0`;
 
   it('shortens paths under the app library folder', () => {

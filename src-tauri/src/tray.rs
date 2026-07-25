@@ -1,6 +1,6 @@
 use crate::{
     app::{elevate_self, get_system_locale, AppState},
-    library::{list_versions_at, open_directory},
+    library::{list_versions_at, managed_library_path, open_directory},
     service::{get_service_status, stop_service},
 };
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -53,7 +53,6 @@ struct TrayStrings {
     update_unknown: &'static str,
     installed: &'static str,
     library: &'static str,
-    library_not_configured: &'static str,
     show: &'static str,
     stop_service: &'static str,
     relaunch_admin: &'static str,
@@ -83,7 +82,6 @@ fn strings_en() -> TrayStrings {
         update_unknown: "Update: Unknown",
         installed: "Installed: {n} versions",
         library: "Library",
-        library_not_configured: "Library: Not configured",
         show: "Show Zapretyd",
         stop_service: "Stop service",
         relaunch_admin: "Relaunch as administrator",
@@ -114,7 +112,6 @@ fn strings_ru() -> TrayStrings {
         update_unknown: "Обновление: Неизвестно",
         installed: "Установлено: {n} версий",
         library: "Библиотека",
-        library_not_configured: "Библиотека: Не настроена",
         show: "Показать Zapretyd",
         stop_service: "Остановить службу",
         relaunch_admin: "Перезапустить от администратора",
@@ -163,16 +160,18 @@ fn build_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
     let status = get_service_status();
     let running = status.service_running && status.winws_running;
 
-    let (library_path, cached_latest) = app
+    let cached_latest = app
         .try_state::<AppState>()
         .and_then(|state| {
             state
                 .settings
                 .lock()
                 .ok()
-                .map(|s| (s.library_path.clone(), s.cached_latest_tag.clone()))
-        })
-        .unwrap_or((None, None));
+                .and_then(|s| s.cached_latest_tag.clone())
+        });
+    let library_path = app
+        .try_state::<AppState>()
+        .and_then(|state| managed_library_path(&state.config_dir).ok());
 
     let versions = library_path
         .as_deref()
@@ -202,7 +201,7 @@ fn build_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
     let strategy_name = status.active_strategy.as_deref().unwrap_or(t.none);
     let library_text = match &library_path {
         Some(path) => format!("{}: {}", t.library, truncate_path(path, 42)),
-        None => t.library_not_configured.to_string(),
+        None => t.library.to_string(),
     };
 
     let header = MenuItem::with_id(
@@ -415,11 +414,7 @@ pub fn init_tray<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
             }
             "open_library" => {
                 if let Some(path) = app.try_state::<AppState>().and_then(|state| {
-                    state
-                        .settings
-                        .lock()
-                        .ok()
-                        .and_then(|s| s.library_path.clone())
+                    managed_library_path(&state.config_dir).ok()
                 }) {
                     let _ = open_directory(path);
                 }

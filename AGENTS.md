@@ -57,7 +57,7 @@ src/                    React frontend (Feature-Sliced Design–style folders)
   app/                  App shell, theme, root component
   pages/                Route-level screens (overview, versions, settings)
   widgets/              Shared layout (AppShell)
-  features/             Focused UI flows (library path dialog)
+  features/             Focused UI flows
   shared/               API client, formatting helpers
 
 src-tauri/              Rust backend
@@ -80,11 +80,11 @@ src-tauri/              Rust backend
 
 ### Library model
 
-- User picks a **library path** stored in app config (`settings.json` under the Tauri config dir).
+- Versions are always stored in the managed app library from `library::resolve_default_library_path` (`<app_config_dir>/library`, or `C:\Zapretyd` if that path is not ASCII-safe).
+- On load, settings `libraryPath` is forced to that path (`library::ensure_settings_library_path`); custom paths are ignored.
 - Each release is extracted to `<library>/versions/<tag>/`.
 - Metadata is stored in `<library>/versions/<tag>/.zapretyd.json`.
-- Library paths must be ASCII-only (no Cyrillic or special characters) — enforced in `library::validate_library_path`.
-- Users may skip picking a folder and use the built-in path from `library::resolve_default_library_path` (`<app_config_dir>/library`, or `C:\Zapretyd` if that path is not ASCII-safe).
+- Library path validation remains ASCII-only via `library::validate_library_path` (used when resolving the default / fallback).
 
 ### Service management
 
@@ -157,6 +157,7 @@ npm run tauri build  # Production installer (NSIS)
 ## Do not
 
 - Commit `node_modules/`, `dist/`, or `src-tauri/target/` (see `.gitignore`).
-- Hardcode non-ASCII library paths in examples or defaults.
+- Hardcode non-ASCII library paths in examples or defaults (except the documented `C:\Zapretyd` ASCII fallback).
 - Add strategies or binaries outside the managed library path.
+- Reintroduce a user-facing library folder picker.
 - Introduce non-English user-facing strings.

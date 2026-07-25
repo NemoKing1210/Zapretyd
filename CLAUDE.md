@@ -61,7 +61,7 @@ Also update HTTP user-agent strings (`Zapretyd/X.Y`) in `library.rs` / `releases
 
 1. Minimal, focused diffs; match existing patterns.
 2. Format with Prettier/ESLint — do not hand-fight the formatter.
-3. Library paths must be ASCII-only (`library::validate_library_path`). Default app library: `resolve_default_library_path`.
+3. Library path is fixed to `library::managed_library_path` / `resolve_default_library_path` (ASCII-safe; no user picker).
 4. Only allow strategy files inside the managed library; reject ZIP path traversal (`enclosed_name()`).
 5. New settings: `types.rs` → `app.rs` → `zapretyd.ts` → `SettingsPage.tsx` (+ i18n keys).
 6. Do not commit `node_modules/`, `dist/`, or `src-tauri/target/`.

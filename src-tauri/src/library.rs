@@ -38,12 +38,32 @@ pub fn resolve_default_library_path(config_dir: &Path) -> PathBuf {
     }
 }
 
-#[tauri::command]
-pub fn get_default_library_path(state: State<AppState>) -> Result<String, String> {
-    let path = resolve_default_library_path(&state.config_dir);
+/// Always-on library path: default under the app config dir (or ASCII fallback).
+/// Ensures `<path>/versions` exists.
+pub fn managed_library_path(config_dir: &Path) -> Result<String, String> {
+    let path = resolve_default_library_path(config_dir);
+    fs::create_dir_all(path.join("versions")).map_err(|e| e.to_string())?;
     path.to_str()
         .map(str::to_string)
         .ok_or_else(|| "error.library.pathInvalid".into())
+}
+
+/// Force `settings.library_path` to the managed default. Returns true if settings changed.
+pub fn ensure_settings_library_path(
+    config_dir: &Path,
+    settings: &mut crate::types::AppSettings,
+) -> Result<bool, String> {
+    let path = managed_library_path(config_dir)?;
+    let changed = settings
+        .library_path
+        .as_deref()
+        .is_none_or(|current| !paths_equal(current, &path));
+    settings.library_path = Some(path);
+    Ok(changed)
+}
+
+fn paths_equal(a: &str, b: &str) -> bool {
+    a.replace('/', "\\").eq_ignore_ascii_case(&b.replace('/', "\\"))
 }
 fn versions_dir(base: &str) -> PathBuf {
     Path::new(base).join("versions")
@@ -165,13 +185,8 @@ fn cmp_version_tags_desc(a: &str, b: &str) -> std::cmp::Ordering {
 }
 #[tauri::command]
 pub fn list_installed_versions(state: State<AppState>) -> Result<Vec<InstalledVersion>, String> {
-    let settings = state.settings.lock().map_err(|e| e.to_string())?;
-    settings
-        .library_path
-        .as_deref()
-        .map(list_versions_at)
-        .transpose()
-        .map(|v| v.unwrap_or_default())
+    let base = managed_library_path(&state.config_dir)?;
+    list_versions_at(&base)
 }
 #[tauri::command]
 pub async fn install_release(
@@ -180,14 +195,8 @@ pub async fn install_release(
     state: State<'_, AppState>,
     window: Window,
 ) -> Result<InstalledVersion, String> {
-    let base_path = state
-        .settings
-        .lock()
-        .map_err(|e| e.to_string())?
-        .library_path
-        .clone()
-        .ok_or("error.library.chooseFirst".to_string())?;
-    let base = validate_library_path(&base_path)?;
+    let base_path = managed_library_path(&state.config_dir)?;
+    let base = PathBuf::from(&base_path);
     let target = base.join("versions").join(&release.tag);
     if target.exists() {
         if !force {
@@ -280,13 +289,7 @@ pub fn extract_zip(zip_path: &Path, target: &Path) -> Result<(), String> {
 }
 #[tauri::command]
 pub fn remove_version(tag: String, state: State<AppState>) -> Result<(), String> {
-    let base = state
-        .settings
-        .lock()
-        .map_err(|e| e.to_string())?
-        .library_path
-        .clone()
-        .ok_or("error.library.notConfigured".to_string())?;
+    let base = managed_library_path(&state.config_dir)?;
     let target = versions_dir(&base).join(&tag);
     if !target.starts_with(versions_dir(&base)) || !target.exists() {
         return Err("error.library.versionNotFound".into());
@@ -301,13 +304,7 @@ pub fn remove_version(tag: String, state: State<AppState>) -> Result<(), String>
 }
 #[tauri::command]
 pub fn get_strategies(tag: String, state: State<AppState>) -> Result<Vec<StrategyInfo>, String> {
-    let base = state
-        .settings
-        .lock()
-        .map_err(|e| e.to_string())?
-        .library_path
-        .clone()
-        .ok_or("error.library.notConfigured".to_string())?;
+    let base = managed_library_path(&state.config_dir)?;
     let root = versions_dir(&base).join(&tag);
     if !root.exists() {
         return Err("error.library.versionNotFound".into());
@@ -342,13 +339,7 @@ fn is_safe_path_segment(value: &str) -> bool {
 }
 
 fn library_path_from_state(state: &State<AppState>) -> Result<String, String> {
-    state
-        .settings
-        .lock()
-        .map_err(|e| e.to_string())?
-        .library_path
-        .clone()
-        .ok_or_else(|| "error.library.notConfigured".to_string())
+    managed_library_path(&state.config_dir)
 }
 
 fn resolve_version_lists_dir(base: &str, tag: &str) -> Result<PathBuf, String> {
@@ -611,16 +602,38 @@ mod tests {
     }
     #[test]
     fn default_library_uses_config_subdir_when_ascii() {
-        let path = resolve_default_library_path(Path::new(r"C:\Users\user\AppData\Roaming\dev.zapretyd.desktop"));
+        let path = resolve_default_library_path(Path::new(r"C:\Users\user\AppData\Roaming\Zapretyd"));
         assert_eq!(
             path,
-            PathBuf::from(r"C:\Users\user\AppData\Roaming\dev.zapretyd.desktop\library")
+            PathBuf::from(r"C:\Users\user\AppData\Roaming\Zapretyd\library")
         );
     }
     #[test]
     fn default_library_falls_back_for_non_ascii_config_dir() {
-        let path = resolve_default_library_path(Path::new(r"C:\Users\Имя\AppData\Roaming\dev.zapretyd.desktop"));
+        let path = resolve_default_library_path(Path::new(r"C:\Users\Имя\AppData\Roaming\Zapretyd"));
         assert_eq!(path, PathBuf::from(ASCII_FALLBACK_LIBRARY));
+    }
+    #[test]
+    fn ensure_settings_overwrites_custom_library_path() {
+        let config = std::env::temp_dir().join(format!(
+            "zapretyd-ensure-lib-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&config);
+        fs::create_dir_all(&config).unwrap();
+        let mut settings = crate::types::AppSettings {
+            library_path: Some(r"D:\CustomZapret".into()),
+            theme: "system".into(),
+            ..Default::default()
+        };
+        let changed = ensure_settings_library_path(&config, &mut settings).unwrap();
+        assert!(changed);
+        assert_eq!(
+            settings.library_path.as_deref(),
+            Some(config.join("library").to_str().unwrap())
+        );
+        assert!(config.join("library").join("versions").is_dir());
+        let _ = fs::remove_dir_all(&config);
     }
     #[test]
     fn resolve_payload_dir_uses_nested_release_folder() {

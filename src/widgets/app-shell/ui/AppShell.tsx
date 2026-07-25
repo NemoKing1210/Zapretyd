@@ -29,12 +29,14 @@ import {
   Typography,
 } from '@mui/material';
 import type { ServiceStatus } from '../../../shared/api/zapretyd';
+import { api } from '../../../shared/api/zapretyd';
 import { useTranslation } from '../../../shared/i18n';
 import { useErrorLog } from '../../../shared/lib/errorLog';
 
 const DRAWER_WIDTH = 240;
 const DRAWER_WIDTH_COLLAPSED = 72;
 const SIDEBAR_COLLAPSED_KEY = 'zapretyd.sidebarCollapsed';
+const PROJECT_REPO_URL = 'https://github.com/NemoKing1210/Zapretyd';
 
 const baseNavigation = [
   { key: 'overview', labelKey: 'nav.overview' as const, icon: <DashboardOutlined /> },
@@ -71,6 +73,7 @@ export function AppShell({
   latestTag,
   latestInstalled = false,
   onOpenLatestVersion,
+  onRelaunchAsAdmin,
   children,
 }: {
   page: PageKey;
@@ -81,6 +84,7 @@ export function AppShell({
   latestTag?: string;
   latestInstalled?: boolean;
   onOpenLatestVersion?: () => void;
+  onRelaunchAsAdmin?: () => void;
   children: React.ReactNode;
 }) {
   const { t } = useTranslation();
@@ -149,15 +153,17 @@ export function AppShell({
               />
             )}
             {showLatestBadge && (
-              <Chip
-                size="small"
-                clickable
-                color={latestInstalled ? 'default' : 'primary'}
-                variant="outlined"
-                icon={latestInstalled ? <VerifiedOutlined /> : <NewReleasesOutlined />}
-                label={t('shell.latestVersion', { tag: latestTag! })}
-                onClick={onOpenLatestVersion}
-              />
+              <Tooltip title={t('shell.latestVersionHint')}>
+                <Chip
+                  size="small"
+                  clickable
+                  color={latestInstalled ? 'default' : 'primary'}
+                  variant="outlined"
+                  icon={latestInstalled ? <VerifiedOutlined /> : <NewReleasesOutlined />}
+                  label={t('shell.latestVersion', { tag: latestTag! })}
+                  onClick={onOpenLatestVersion}
+                />
+              </Tooltip>
             )}
           </Stack>
           <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
@@ -176,15 +182,17 @@ export function AppShell({
               sx={running && status?.activeStrategy ? { maxWidth: 280 } : undefined}
             />
             {status && !status.isAdmin && (
-              <Chip
-                size="small"
-                clickable
-                onClick={() => onPage('overview')}
-                icon={<AdminPanelSettingsOutlined />}
-                color="warning"
-                variant="outlined"
-                label={t('shell.adminMissing')}
-              />
+              <Tooltip title={t('shell.adminMissingHint')}>
+                <Chip
+                  size="small"
+                  clickable
+                  onClick={onRelaunchAsAdmin}
+                  icon={<AdminPanelSettingsOutlined />}
+                  color="warning"
+                  variant="outlined"
+                  label={t('shell.adminMissing')}
+                />
+              </Tooltip>
             )}
           </Stack>
         </Toolbar>
@@ -337,9 +345,35 @@ export function AppShell({
             textAlign: collapsed ? 'center' : 'left',
           }}
         >
-          <Typography variant="caption" color="text.secondary" noWrap>
-            {t('shell.appVersion', { version: appVersion })}
-          </Typography>
+          <Tooltip
+            title={t('shell.appVersionHint')}
+            placement={collapsed ? 'right' : 'top'}
+          >
+            <Typography
+              component="button"
+              type="button"
+              variant="caption"
+              color="text.secondary"
+              noWrap
+              onClick={() => void api.openUrl(PROJECT_REPO_URL)}
+              sx={{
+                border: 0,
+                background: 'none',
+                p: 0,
+                m: 0,
+                cursor: 'pointer',
+                fontSize: '0.65rem',
+                lineHeight: 1.2,
+                color: 'inherit',
+                '&:hover': {
+                  color: 'primary.main',
+                  textDecoration: 'underline',
+                },
+              }}
+            >
+              {t('shell.appVersion', { version: appVersion })}
+            </Typography>
+          </Tooltip>
         </Box>
       </Drawer>
 
