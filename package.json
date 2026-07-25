@@ -16,7 +16,17 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "version:sync": "node scripts/release.mjs sync",
+    "version:patch": "node scripts/release.mjs bump patch",
+    "version:minor": "node scripts/release.mjs bump minor",
+    "version:major": "node scripts/release.mjs bump major",
+    "version:set": "node scripts/release.mjs bump",
+    "release:patch": "node scripts/release.mjs release patch",
+    "release:minor": "node scripts/release.mjs release minor",
+    "release:major": "node scripts/release.mjs release major",
+    "release:set": "node scripts/release.mjs release",
+    "release:tag": "node scripts/release.mjs tag"
   },
   "dependencies": {
     "@codemirror/commands": "^6.10.4",

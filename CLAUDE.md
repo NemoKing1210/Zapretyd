@@ -2,7 +2,7 @@
 
 Instructions for Claude Code when working in the Zapretyd repository.
 
-For the full shared agent guide (architecture, common tasks, do-not list), read and follow [AGENTS.md](./AGENTS.md). Keep this file and `AGENTS.md` consistent when project conventions change.
+For the full shared agent guide (architecture, common tasks, do-not list), read and follow [AGENTS.md](./AGENTS.md). For human development processes (setup, scripts, releases), see [DEVELOPMENT.md](./DEVELOPMENT.md). Keep these docs consistent when project conventions change.
 
 ## What this project is
 
@@ -20,6 +20,7 @@ npm run lint           # ESLint
 npm run lint:fix      # ESLint autofix
 npm run format         # Prettier
 npm run tauri build    # NSIS installer
+npm run release:patch  # bump + tag + push (GitHub Release draft)
 ```
 
 Rust tests: `cargo test` in `src-tauri/`.
@@ -35,7 +36,7 @@ Requires Windows 10/11, Node.js 20+, Rust. Admin rights for service create/start
 
 ## Versioning
 
-Source of truth: `package.json` → `version` (SemVer).
+Source of truth: `package.json` → `version` (SemVer). Prefer `npm run version:patch` / `npm run release:patch` (see `scripts/release.mjs`).
 
 **Bump** when finishing a user-visible change set or preparing a release (features, settings, bug fixes, behavior/UI changes).
 
@@ -54,7 +55,7 @@ Also update HTTP user-agent strings (`Zapretyd/X.Y`) in `library.rs` / `releases
 - UI: English + Russian in `src/shared/i18n/locales/en.ts` and `ru.ts`
 - Backend returns stable error codes (`error.library.notConfigured`); frontend translates
 - Settings: `locale` = `system` | `en` | `ru`
-- Docs (`README.md`, `AGENTS.md`, `CLAUDE.md`) stay in English
+- Docs (`README.md`, `DEVELOPMENT.md`, `AGENTS.md`, `CLAUDE.md`) stay in English
 - Do not hardcode non-English user-facing strings in code; put copy in locale files
 
 ## Coding rules

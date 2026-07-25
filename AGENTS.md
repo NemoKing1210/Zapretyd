@@ -21,11 +21,12 @@ App version is maintained in `package.json` (`version` field). Use SemVer (`MAJO
 
 **Do not bump** for docs-only edits, internal refactors with no user impact, dependency housekeeping alone, or unfinished WIP on a feature branch.
 
-When bumping, keep these in sync with `package.json`:
+When bumping, keep these in sync with `package.json` (prefer `npm run version:patch` / `release:patch`, which syncs all of them):
 
 - `src-tauri/tauri.conf.json` → `version`
 - `src-tauri/Cargo.toml` → `package.version`
 - `package-lock.json` → root `version` (and `packages[""].version`)
+- HTTP user-agent `Zapretyd/X.Y` in `library.rs` / `releases.rs` when major/minor changes
 
 Do not invent a separate versioning scheme outside `package.json`.
 
@@ -39,7 +40,7 @@ Do not invent a separate versioning scheme outside `package.json`.
 - Users can override the language in Settings (`AppSettings.locale`: `system` | `en` | `ru`)
 - Use `useTranslation()` in React components; use `getLocale()` for `Intl` formatting helpers
 
-Documentation (`README.md`, `AGENTS.md`, `CLAUDE.md`) stays in English.
+Documentation (`README.md`, `DEVELOPMENT.md`, `AGENTS.md`, `CLAUDE.md`) stays in English.
 
 ## Tech stack
 
@@ -105,21 +106,14 @@ src-tauri/              Rust backend
 
 ## Development
 
+Human contributor processes (setup, scripts, versioning, GitHub Releases) are documented in [DEVELOPMENT.md](./DEVELOPMENT.md). Summary:
+
 ```powershell
 npm install
 npm run tauri dev
 ```
 
-Other scripts:
-
-```powershell
-npm run dev          # Vite only (no Tauri shell)
-npm run build        # Typecheck + frontend production build
-npm test             # Vitest
-npm run lint         # ESLint
-npm run format       # Prettier
-npm run tauri build  # Production installer (NSIS)
-```
+Other scripts: see `DEVELOPMENT.md` or `package.json`.
 
 ### Requirements
 
@@ -146,7 +140,8 @@ npm run tauri build  # Production installer (NSIS)
 | GitHub release handling | `releases.rs`                                                |
 | Service behavior        | `service.rs`                                                 |
 | User-visible errors     | Rust `Err("...")` strings and React UI copy                  |
-| Bump app version        | `package.json`, then sync `tauri.conf.json` and `Cargo.toml` |
+| Bump app version        | `npm run version:patch` (also syncs Tauri/Cargo/lock/user-agent) |
+| Publish GitHub release  | `npm run release:patch` (bump + commit + tag + push) → publish draft |
 
 ## Testing
 

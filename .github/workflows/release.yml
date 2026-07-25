@@ -1,0 +1,61 @@
+# Build the Windows NSIS installer and attach it to a GitHub Release.
+#
+# Triggers:
+#   - Manual run from the Actions tab (workflow_dispatch)
+#   - Push of a version tag matching v* (e.g. v0.4.43)
+#
+# Before tagging: bump/sync versions via npm run version:* or release:*
+# (see DEVELOPMENT.md).
+#
+# The release is created as a draft so you can edit notes, then Publish.
+
+name: Release
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Build and upload installer
+        uses: tauri-apps/tauri-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: v__VERSION__
+          releaseName: Zapretyd v__VERSION__
+          releaseBody: |
+            Windows installer for Zapretyd.
+
+            Download the `.exe` (NSIS) from Assets below, then run it.
+
+            **Note:** The installer is currently unsigned. Windows SmartScreen may show a warning on first run — choose "More info" → "Run anyway" if you trust this release.
+          releaseDraft: true
+          prerelease: false
