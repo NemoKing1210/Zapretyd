@@ -398,8 +398,19 @@ fn resolve_managed_list_path(base: &str, tag: &str, name: &str) -> Result<PathBu
     Ok(file_canon)
 }
 
+fn list_file_differs_from_original(live: &Path, original: &Path) -> bool {
+    match (fs::read(live), fs::read(original)) {
+        (Ok(live_bytes), Ok(original_bytes)) => live_bytes != original_bytes,
+        _ => true,
+    }
+}
+
 fn list_files_in_lists_dir(lists: &Path) -> Result<Vec<ListFileInfo>, String> {
-    let mut result = vec![];
+    use std::collections::BTreeMap;
+
+    let backup_dir = lists.join(LISTS_ORIGINAL_DIR);
+    let mut by_name: BTreeMap<String, ListFileInfo> = BTreeMap::new();
+
     for entry in fs::read_dir(lists).map_err(|e| e.to_string())? {
         let entry = entry.map_err(|e| e.to_string())?;
         let path = entry.path();
@@ -415,10 +426,53 @@ fn list_files_in_lists_dir(lists: &Path) -> Result<Vec<ListFileInfo>, String> {
             continue;
         }
         let size = entry.metadata().map(|m| m.len()).unwrap_or(0);
-        result.push(ListFileInfo { name, size });
+        let original = backup_dir.join(&name);
+        // has_original means "restore would change something" (backup exists and differs, or deleted).
+        let has_original = original.is_file() && list_file_differs_from_original(&path, &original);
+        by_name.insert(
+            name.clone(),
+            ListFileInfo {
+                name,
+                size,
+                deleted: false,
+                has_original,
+            },
+        );
     }
-    result.sort_by(|a, b| a.name.cmp(&b.name));
-    Ok(result)
+
+    if backup_dir.is_dir() {
+        for entry in fs::read_dir(&backup_dir).map_err(|e| e.to_string())? {
+            let entry = entry.map_err(|e| e.to_string())?;
+            let path = entry.path();
+            if !path.is_file() {
+                continue;
+            }
+            let name = path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or_default()
+                .to_string();
+            if name.is_empty() || name.starts_with('.') || !is_safe_path_segment(&name) {
+                continue;
+            }
+            if by_name.contains_key(&name) {
+                // Live entry already decided has_original via content compare.
+                continue;
+            }
+            let size = entry.metadata().map(|m| m.len()).unwrap_or(0);
+            by_name.insert(
+                name.clone(),
+                ListFileInfo {
+                    name,
+                    size,
+                    deleted: true,
+                    has_original: true,
+                },
+            );
+        }
+    }
+
+    Ok(by_name.into_values().collect())
 }
 
 fn backup_list_original(lists: &Path, name: &str, source: &Path) -> Result<(), String> {
@@ -430,6 +484,30 @@ fn backup_list_original(lists: &Path, name: &str, source: &Path) -> Result<(), S
     fs::create_dir_all(&backup_dir).map_err(|e| e.to_string())?;
     fs::copy(source, &backup_path).map_err(|e| e.to_string())?;
     Ok(())
+}
+
+fn resolve_list_original_path(lists: &Path, name: &str) -> Result<PathBuf, String> {
+    if !is_safe_path_segment(name) {
+        return Err("error.library.listFileInvalid".into());
+    }
+    let lists_canon = lists
+        .canonicalize()
+        .map_err(|_| "error.library.listsNotFound".to_string())?;
+    let backup_dir = lists.join(LISTS_ORIGINAL_DIR);
+    let backup_canon = backup_dir
+        .canonicalize()
+        .map_err(|_| "error.library.listOriginalNotFound".to_string())?;
+    if !backup_canon.starts_with(&lists_canon) {
+        return Err("error.library.listFileInvalid".into());
+    }
+    let backup_path = backup_dir.join(name);
+    let file_canon = backup_path
+        .canonicalize()
+        .map_err(|_| "error.library.listOriginalNotFound".to_string())?;
+    if !file_canon.starts_with(&backup_canon) || !file_canon.is_file() {
+        return Err("error.library.listOriginalNotFound".into());
+    }
+    Ok(file_canon)
 }
 
 #[tauri::command]
@@ -465,6 +543,45 @@ pub fn write_version_list_file(
     let lists = resolve_version_lists_dir(&base, &tag)?;
     backup_list_original(&lists, &name, &path)?;
     fs::write(path, content).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn delete_version_list_file(
+    tag: String,
+    name: String,
+    state: State<AppState>,
+) -> Result<(), String> {
+    let base = library_path_from_state(&state)?;
+    let path = resolve_managed_list_path(&base, &tag, &name)?;
+    let lists = resolve_version_lists_dir(&base, &tag)?;
+    backup_list_original(&lists, &name, &path)?;
+    fs::remove_file(path).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn restore_version_list_file(
+    tag: String,
+    name: String,
+    state: State<AppState>,
+) -> Result<(), String> {
+    let base = library_path_from_state(&state)?;
+    let lists = resolve_version_lists_dir(&base, &tag)?;
+    let original = resolve_list_original_path(&lists, &name)?;
+    let destination = lists.join(&name);
+    // Ensure we never write outside lists/ (basename already validated).
+    let lists_canon = lists
+        .canonicalize()
+        .map_err(|_| "error.library.listsNotFound".to_string())?;
+    let dest_parent = destination
+        .parent()
+        .ok_or_else(|| "error.library.listFileInvalid".to_string())?
+        .canonicalize()
+        .map_err(|_| "error.library.listsNotFound".to_string())?;
+    if dest_parent != lists_canon {
+        return Err("error.library.listFileInvalid".into());
+    }
+    fs::copy(original, destination).map_err(|e| e.to_string())?;
+    Ok(())
 }
 
 #[tauri::command]
@@ -577,6 +694,13 @@ mod tests {
         let names: Vec<_> = files.iter().map(|f| f.name.as_str()).collect();
         assert_eq!(names, vec!["ipset-all.txt", "list-general.txt"]);
         assert!(!names.iter().any(|n| n.contains(LISTS_ORIGINAL_DIR)));
+        let general = files.iter().find(|f| f.name == "list-general.txt").unwrap();
+        assert!(!general.deleted);
+        // Backup content ("old") differs from live ("example.com"), so restore is offered.
+        assert!(general.has_original);
+        let ipset = files.iter().find(|f| f.name == "ipset-all.txt").unwrap();
+        assert!(!ipset.deleted);
+        assert!(!ipset.has_original);
         let _ = fs::remove_dir_all(&base);
     }
 
@@ -592,6 +716,53 @@ mod tests {
         fs::write(&source, "2.2.2.2\n").unwrap();
         backup_list_original(&lists, "ipset-all.txt", &source).unwrap();
         assert_eq!(fs::read_to_string(&backup).unwrap(), "1.1.1.1\n");
+        let _ = fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn delete_keeps_backup_entry_and_restore_brings_file_back() {
+        let (base, tag) = make_version_with_lists("delete");
+        let lists = resolve_version_lists_dir(&base.to_string_lossy(), &tag).unwrap();
+        let live = lists.join("ipset-all.txt");
+        backup_list_original(&lists, "ipset-all.txt", &live).unwrap();
+        fs::remove_file(&live).unwrap();
+
+        let files = list_files_in_lists_dir(&lists).unwrap();
+        let deleted = files.iter().find(|f| f.name == "ipset-all.txt").unwrap();
+        assert!(deleted.deleted);
+        assert!(deleted.has_original);
+        assert!(!live.exists());
+
+        let original = resolve_list_original_path(&lists, "ipset-all.txt").unwrap();
+        fs::copy(&original, &live).unwrap();
+        assert_eq!(fs::read_to_string(&live).unwrap(), "1.1.1.1\n");
+        let restored = list_files_in_lists_dir(&lists)
+            .unwrap()
+            .into_iter()
+            .find(|f| f.name == "ipset-all.txt")
+            .unwrap();
+        assert!(!restored.deleted);
+        // Live matches backup after restore — no restore action needed.
+        assert!(!restored.has_original);
+        let _ = fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn has_original_when_live_differs_from_backup() {
+        let (base, tag) = make_version_with_lists("differs");
+        let lists = resolve_version_lists_dir(&base.to_string_lossy(), &tag).unwrap();
+        let live = lists.join("list-general.txt");
+        fs::write(&live, "changed\n").unwrap();
+        let files = list_files_in_lists_dir(&lists).unwrap();
+        let general = files.iter().find(|f| f.name == "list-general.txt").unwrap();
+        assert!(general.has_original);
+        fs::write(&live, "old\n").unwrap();
+        let matched = list_files_in_lists_dir(&lists)
+            .unwrap()
+            .into_iter()
+            .find(|f| f.name == "list-general.txt")
+            .unwrap();
+        assert!(!matched.has_original);
         let _ = fs::remove_dir_all(&base);
     }
 }

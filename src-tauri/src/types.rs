@@ -77,6 +77,8 @@ pub struct StrategyInfo {
 pub struct ListFileInfo {
     pub name: String,
     pub size: u64,
+    pub deleted: bool,
+    pub has_original: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]

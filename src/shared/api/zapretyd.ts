@@ -48,7 +48,12 @@ export type InstalledVersion = {
   isActive: boolean;
 };
 export type StrategyInfo = { name: string; path: string; version: string };
-export type ListFileInfo = { name: string; size: number };
+export type ListFileInfo = {
+  name: string;
+  size: number;
+  deleted: boolean;
+  hasOriginal: boolean;
+};
 export type ServiceStatus = {
   isAdmin: boolean;
   serviceExists: boolean;
@@ -80,6 +85,10 @@ export const api = {
     invoke<string>('read_version_list_file', { tag, name }),
   writeVersionListFile: (tag: string, name: string, content: string) =>
     invoke<void>('write_version_list_file', { tag, name, content }),
+  deleteVersionListFile: (tag: string, name: string) =>
+    invoke<void>('delete_version_list_file', { tag, name }),
+  restoreVersionListFile: (tag: string, name: string) =>
+    invoke<void>('restore_version_list_file', { tag, name }),
   openDirectory: (path: string) => invoke<void>('open_directory', { path }),
   openUrl: (url: string) => openerOpenUrl(url),
   status: () => invoke<ServiceStatus>('get_service_status'),

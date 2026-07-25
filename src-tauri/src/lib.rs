@@ -63,6 +63,8 @@ pub fn run() {
             library::list_version_list_files,
             library::read_version_list_file,
             library::write_version_list_file,
+            library::delete_version_list_file,
+            library::restore_version_list_file,
             library::open_directory,
             service::get_service_status,
             service::activate_strategy,

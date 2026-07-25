@@ -1,11 +1,23 @@
-import { useCallback, useEffect, useState } from 'react';
-import { DescriptionOutlined, EditOutlined } from '@mui/icons-material';
+import { useState } from 'react';
+import {
+  DeleteOutline,
+  DescriptionOutlined,
+  EditOutlined,
+  RestoreOutlined,
+} from '@mui/icons-material';
 import {
   Alert,
   Box,
+  Button,
   Chip,
   CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  IconButton,
   Stack,
+  Tooltip,
   Typography,
 } from '@mui/material';
 import { api, type ListFileInfo } from '../../../shared/api/zapretyd';
@@ -19,48 +31,42 @@ function splitFileName(name: string): { base: string; ext: string } {
   return { base: name.slice(0, dot), ext: name.slice(dot) };
 }
 
-export function VersionListsPanel({ tag, active }: { tag: string; active: boolean }) {
+export function VersionListsPanel({
+  tag,
+  files,
+  error,
+  onFilesChange,
+}: {
+  tag: string;
+  files: ListFileInfo[];
+  error: string | null;
+  onFilesChange: (files: ListFileInfo[]) => void;
+}) {
   const { t, translateError } = useTranslation();
-  const [files, setFiles] = useState<ListFileInfo[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [editingName, setEditingName] = useState<string | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [actionBusy, setActionBusy] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
-  const loadFiles = useCallback(() => {
-    setLoading(true);
-    setError(null);
-    api
-      .listVersionListFiles(tag)
-      .then(setFiles)
-      .catch((cause) => {
-        setFiles([]);
-        setError(translateError(String(cause)));
-      })
-      .finally(() => setLoading(false));
-  }, [tag, translateError]);
-
-  useEffect(() => {
-    if (!active) return;
-    loadFiles();
-  }, [active, loadFiles]);
-
-  const openEditor = (name: string) => {
-    setEditingName(name);
-    setEditorOpen(true);
+  const refreshFiles = async () => {
+    const next = await api.listVersionListFiles(tag);
+    onFilesChange(next);
   };
 
-  const closeEditor = () => {
-    setEditorOpen(false);
+  const runAction = async (key: string, action: () => Promise<void>) => {
+    setActionBusy(key);
+    setActionError(null);
+    try {
+      await action();
+      await refreshFiles();
+    } catch (cause) {
+      setActionError(translateError(String(cause)));
+    } finally {
+      setActionBusy(null);
+    }
   };
-
-  if (loading && files.length === 0 && !error) {
-    return (
-      <Box display="flex" justifyContent="center" py={2}>
-        <CircularProgress size={24} />
-      </Box>
-    );
-  }
 
   if (error) {
     return (
@@ -81,16 +87,19 @@ export function VersionListsPanel({ tag, active }: { tag: string; active: boolea
   return (
     <>
       <Stack spacing={1}>
+        {actionError && (
+          <Alert severity="error" onClose={() => setActionError(null)}>
+            {actionError}
+          </Alert>
+        )}
         {files.map((file) => {
           const { base, ext } = splitFileName(file.name);
+          const busy = actionBusy === file.name;
+          const canEdit = !file.deleted;
           return (
             <Box
               key={file.name}
-              component="button"
-              type="button"
-              onClick={() => openEditor(file.name)}
               sx={{
-                all: 'unset',
                 display: 'flex',
                 alignItems: 'center',
                 gap: 1.5,
@@ -100,23 +109,9 @@ export function VersionListsPanel({ tag, active }: { tag: string; active: boolea
                 py: 1.25,
                 borderRadius: 2,
                 border: 1,
-                borderColor: 'divider',
-                bgcolor: 'background.paper',
-                cursor: 'pointer',
-                transition: (theme) =>
-                  theme.transitions.create(['border-color', 'background-color', 'box-shadow'], {
-                    duration: theme.transitions.duration.shorter,
-                  }),
-                '&:hover': {
-                  borderColor: 'primary.main',
-                  bgcolor: 'action.hover',
-                  '& .lists-edit-icon': { opacity: 1 },
-                },
-                '&:focus-visible': {
-                  outline: '2px solid',
-                  outlineColor: 'primary.main',
-                  outlineOffset: 2,
-                },
+                borderColor: file.deleted ? 'warning.main' : 'divider',
+                bgcolor: file.deleted ? 'action.hover' : 'background.paper',
+                opacity: file.deleted ? 0.92 : 1,
               }}
             >
               <Box
@@ -128,37 +123,95 @@ export function VersionListsPanel({ tag, active }: { tag: string; active: boolea
                   placeItems: 'center',
                   flexShrink: 0,
                   bgcolor: 'action.selected',
-                  color: 'primary.main',
+                  color: file.deleted ? 'warning.main' : 'primary.main',
                 }}
               >
                 <DescriptionOutlined fontSize="small" />
               </Box>
               <Box sx={{ minWidth: 0, flex: 1 }}>
-                <Typography
-                  variant="body2"
-                  noWrap
-                  title={file.name}
-                  sx={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace' }}
-                >
-                  <Box component="span" sx={{ fontWeight: 600 }}>
-                    {base}
-                  </Box>
-                  {ext && (
-                    <Box component="span" sx={{ color: 'text.secondary', fontWeight: 500 }}>
-                      {ext}
+                <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+                  <Typography
+                    variant="body2"
+                    noWrap
+                    title={file.name}
+                    sx={{
+                      fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
+                      textDecoration: file.deleted ? 'line-through' : 'none',
+                      color: file.deleted ? 'text.secondary' : 'text.primary',
+                    }}
+                  >
+                    <Box component="span" sx={{ fontWeight: 600 }}>
+                      {base}
                     </Box>
+                    {ext && (
+                      <Box component="span" sx={{ color: 'text.secondary', fontWeight: 500 }}>
+                        {ext}
+                      </Box>
+                    )}
+                  </Typography>
+                  {file.deleted && (
+                    <Chip size="small" color="warning" label={t('versions.listsDeleted')} />
                   )}
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  {t('versions.listsEditHint')}
-                </Typography>
+                </Stack>
               </Box>
-              <Chip size="small" label={formatBytes(file.size)} sx={{ flexShrink: 0 }} />
-              <EditOutlined
-                className="lists-edit-icon"
-                fontSize="small"
-                sx={{ color: 'text.secondary', opacity: 0.45, flexShrink: 0 }}
-              />
+              {!file.deleted && (
+                <Chip size="small" label={formatBytes(file.size)} sx={{ flexShrink: 0 }} />
+              )}
+              <Stack direction="row" spacing={0.25} flexShrink={0}>
+                {canEdit && (
+                  <Tooltip title={t('versions.listsEdit')}>
+                    <span>
+                      <IconButton
+                        size="small"
+                        disabled={busy}
+                        onClick={() => {
+                          setEditingName(file.name);
+                          setEditorOpen(true);
+                        }}
+                      >
+                        <EditOutlined fontSize="small" />
+                      </IconButton>
+                    </span>
+                  </Tooltip>
+                )}
+                {file.hasOriginal && (
+                  <Tooltip title={t('versions.listsRestore')}>
+                    <span>
+                      <IconButton
+                        size="small"
+                        color="primary"
+                        disabled={busy}
+                        onClick={() =>
+                          void runAction(file.name, () => api.restoreVersionListFile(tag, file.name))
+                        }
+                      >
+                        {busy ? (
+                          <CircularProgress size={16} color="inherit" />
+                        ) : (
+                          <RestoreOutlined fontSize="small" />
+                        )}
+                      </IconButton>
+                    </span>
+                  </Tooltip>
+                )}
+                {canEdit && (
+                  <Tooltip title={t('versions.listsDelete')}>
+                    <span>
+                      <IconButton
+                        size="small"
+                        color="error"
+                        disabled={busy}
+                        onClick={() => {
+                          setDeleteTarget(file.name);
+                          setDeleteOpen(true);
+                        }}
+                      >
+                        <DeleteOutline fontSize="small" />
+                      </IconButton>
+                    </span>
+                  </Tooltip>
+                )}
+              </Stack>
             </Box>
           );
         })}
@@ -167,9 +220,54 @@ export function VersionListsPanel({ tag, active }: { tag: string; active: boolea
         open={editorOpen}
         tag={tag}
         fileName={editingName}
-        onClose={closeEditor}
-        onSaved={loadFiles}
+        onClose={() => setEditorOpen(false)}
+        onSaved={() => void refreshFiles()}
       />
+      <Dialog
+        open={deleteOpen}
+        onClose={() => {
+          if (actionBusy) return;
+          setDeleteOpen(false);
+        }}
+        slotProps={{
+          transition: {
+            onExited: () => setDeleteTarget(null),
+          },
+        }}
+      >
+        <DialogTitle>
+          {t('versions.listsDeleteConfirmTitle', { name: deleteTarget ?? '' })}
+        </DialogTitle>
+        <DialogContent>{t('versions.listsDeleteConfirmBody')}</DialogContent>
+        <DialogActions>
+          <Button
+            variant="text"
+            disabled={Boolean(actionBusy)}
+            onClick={() => setDeleteOpen(false)}
+          >
+            {t('versions.cancel')}
+          </Button>
+          <Button
+            color="error"
+            disabled={!deleteTarget || Boolean(actionBusy)}
+            startIcon={
+              actionBusy === deleteTarget ? (
+                <CircularProgress size={18} color="inherit" />
+              ) : undefined
+            }
+            onClick={() => {
+              if (!deleteTarget) return;
+              const name = deleteTarget;
+              void runAction(name, async () => {
+                await api.deleteVersionListFile(tag, name);
+                setDeleteOpen(false);
+              });
+            }}
+          >
+            {t('versions.listsDelete')}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </>
   );
 }

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { DeleteOutline, ExpandMore, RefreshOutlined } from '@mui/icons-material';
 import {
   Accordion,
@@ -19,7 +19,7 @@ import {
   Stack,
   Typography,
 } from '@mui/material';
-import type { InstalledVersion } from '../../../shared/api/zapretyd';
+import { api, type InstalledVersion, type ListFileInfo } from '../../../shared/api/zapretyd';
 import { useTranslation } from '../../../shared/i18n';
 import { formatBytes, formatDate, formatVersionPath } from '../../../shared/lib/format';
 import { VersionListsPanel } from './VersionListsPanel';
@@ -27,6 +27,12 @@ import { VersionListsPanel } from './VersionListsPanel';
 type ConfirmAction =
   | { type: 'reinstall'; tag: string }
   | { type: 'remove'; tag: string };
+
+type ListsPayload = {
+  tag: string;
+  files: ListFileInfo[];
+  error: string | null;
+};
 
 export function InstalledVersionsList({
   versions,
@@ -51,11 +57,14 @@ export function InstalledVersionsList({
   onOpen: (path: string) => void;
   onBrowseAll: () => void;
 }) {
-  const { t } = useTranslation();
+  const { t, translateError } = useTranslation();
   const [confirm, setConfirm] = useState<ConfirmAction | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmBusy, setConfirmBusy] = useState(false);
   const [expandedTag, setExpandedTag] = useState<string | false>(false);
+  const [scanningTag, setScanningTag] = useState<string | null>(null);
+  const [listsPayload, setListsPayload] = useState<ListsPayload | null>(null);
+  const scanRequestId = useRef(0);
   const busy = Boolean(installingTag) || confirmBusy;
 
   const openConfirm = (action: ConfirmAction) => {
@@ -65,6 +74,44 @@ export function InstalledVersionsList({
   const closeConfirm = () => {
     if (confirmBusy) return;
     setConfirmOpen(false);
+  };
+
+  const collapseLists = () => {
+    scanRequestId.current += 1;
+    setScanningTag(null);
+    setExpandedTag(false);
+    setListsPayload(null);
+  };
+
+  const handleListsToggle = (tag: string, open: boolean) => {
+    if (!open) {
+      collapseLists();
+      return;
+    }
+    if (scanningTag === tag) return;
+
+    const requestId = ++scanRequestId.current;
+    setExpandedTag(false);
+    setListsPayload(null);
+    setScanningTag(tag);
+
+    void api
+      .listVersionListFiles(tag)
+      .then((files) => {
+        if (requestId !== scanRequestId.current) return;
+        setListsPayload({ tag, files, error: null });
+        setExpandedTag(tag);
+      })
+      .catch((cause) => {
+        if (requestId !== scanRequestId.current) return;
+        setListsPayload({ tag, files: [], error: translateError(String(cause)) });
+        setExpandedTag(tag);
+      })
+      .finally(() => {
+        if (requestId === scanRequestId.current) {
+          setScanningTag(null);
+        }
+      });
   };
 
   if (versions.length === 0) {
@@ -86,6 +133,8 @@ export function InstalledVersionsList({
     <Stack spacing={2}>
       {versions.map((version) => {
         const installing = installingTag === version.tag;
+        const scanning = scanningTag === version.tag;
+        const expanded = expandedTag === version.tag;
         return (
           <Card key={version.tag}>
             <CardContent>
@@ -158,8 +207,8 @@ export function InstalledVersionsList({
             <Accordion
               disableGutters
               elevation={0}
-              expanded={expandedTag === version.tag}
-              onChange={(_, open) => setExpandedTag(open ? version.tag : false)}
+              expanded={expanded}
+              onChange={(_, open) => handleListsToggle(version.tag, open)}
               sx={{
                 bgcolor: 'transparent',
                 '&:before': { display: 'none' },
@@ -167,11 +216,30 @@ export function InstalledVersionsList({
                 borderColor: 'divider',
               }}
             >
-              <AccordionSummary expandIcon={<ExpandMore />}>
-                <Typography variant="body2">{t('versions.lists')}</Typography>
+              <AccordionSummary
+                expandIcon={
+                  scanning ? <CircularProgress size={18} color="inherit" /> : <ExpandMore />
+                }
+                sx={{
+                  opacity: scanningTag && !scanning ? 0.55 : 1,
+                  pointerEvents: scanningTag && !scanning ? 'none' : 'auto',
+                }}
+              >
+                <Typography variant="body2">{t('versions.additional')}</Typography>
               </AccordionSummary>
               <AccordionDetails sx={{ pt: 0 }}>
-                <VersionListsPanel tag={version.tag} active={expandedTag === version.tag} />
+                {expanded && listsPayload?.tag === version.tag ? (
+                  <VersionListsPanel
+                    tag={version.tag}
+                    files={listsPayload.files}
+                    error={listsPayload.error}
+                    onFilesChange={(files) =>
+                      setListsPayload((prev) =>
+                        prev?.tag === version.tag ? { ...prev, files, error: null } : prev,
+                      )
+                    }
+                  />
+                ) : null}
               </AccordionDetails>
             </Accordion>
           </Card>

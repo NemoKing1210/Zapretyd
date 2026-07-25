@@ -115,9 +115,16 @@ export const en = {
   'versions.openOnGitHub': 'Open on GitHub',
   'versions.prerelease': 'Prerelease',
   'versions.lists': 'Lists',
+  'versions.additional': 'Additional',
   'versions.listsEmpty': 'No list files found in this version.',
   'versions.listsApply': 'Apply',
-  'versions.listsEditHint': 'Click to edit',
+  'versions.listsEdit': 'Edit',
+  'versions.listsDelete': 'Delete',
+  'versions.listsRestore': 'Restore',
+  'versions.listsDeleted': 'Deleted',
+  'versions.listsDeleteConfirmTitle': 'Delete {{name}}?',
+  'versions.listsDeleteConfirmBody':
+    'The current file will be backed up and removed. You can restore it later from this list.',
 
   'service.detected': 'zapret service detected',
   'service.notInstalled': 'zapret service is not installed',
@@ -191,6 +198,7 @@ export const en = {
   'error.library.listsNotFound': 'Lists folder not found for this version',
   'error.library.listFileNotFound': 'List file not found',
   'error.library.listFileInvalid': 'Invalid list file path',
+  'error.library.listOriginalNotFound': 'Original list backup not found',
 
   'error.autostart.failed': 'Failed to update Windows startup registration',
 

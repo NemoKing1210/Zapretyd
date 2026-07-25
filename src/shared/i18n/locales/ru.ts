@@ -117,9 +117,16 @@ export const ru: Record<TranslationKey, string> = {
   'versions.openOnGitHub': 'Открыть на GitHub',
   'versions.prerelease': 'Пререлиз',
   'versions.lists': 'Списки',
+  'versions.additional': 'Дополнительно',
   'versions.listsEmpty': 'В этой версии нет файлов списков.',
   'versions.listsApply': 'Применить',
-  'versions.listsEditHint': 'Нажмите, чтобы изменить',
+  'versions.listsEdit': 'Изменить',
+  'versions.listsDelete': 'Удалить',
+  'versions.listsRestore': 'Восстановить',
+  'versions.listsDeleted': 'Удалён',
+  'versions.listsDeleteConfirmTitle': 'Удалить {{name}}?',
+  'versions.listsDeleteConfirmBody':
+    'Текущий файл будет сохранён в резервную копию и удалён. Позже его можно восстановить из этого списка.',
 
   'service.detected': 'Служба zapret обнаружена',
   'service.notInstalled': 'Служба zapret не установлена',
@@ -193,6 +200,7 @@ export const ru: Record<TranslationKey, string> = {
   'error.library.listsNotFound': 'Папка lists не найдена для этой версии',
   'error.library.listFileNotFound': 'Файл списка не найден',
   'error.library.listFileInvalid': 'Некорректный путь к файлу списка',
+  'error.library.listOriginalNotFound': 'Резервная копия файла списка не найдена',
 
   'error.autostart.failed': 'Не удалось обновить автозагрузку Windows',
 
