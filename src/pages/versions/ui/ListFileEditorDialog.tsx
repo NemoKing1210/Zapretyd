@@ -17,6 +17,11 @@ import {
 import { api } from '../../../shared/api/zapretyd';
 import { useTranslation } from '../../../shared/i18n';
 
+function resolveEditorHeight(): number {
+  if (typeof window === 'undefined') return 480;
+  return Math.max(240, Math.min(560, Math.round(window.innerHeight * 0.8) - 180));
+}
+
 export function ListFileEditorDialog({
   open,
   tag,
@@ -32,6 +37,7 @@ export function ListFileEditorDialog({
 }) {
   const { t, translateError } = useTranslation();
   const theme = useTheme();
+  const [editorHeight, setEditorHeight] = useState(resolveEditorHeight);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [original, setOriginal] = useState('');
@@ -42,8 +48,11 @@ export function ListFileEditorDialog({
     () => [
       EditorView.lineWrapping,
       EditorView.theme({
-        '&': { height: '100%', fontSize: '13px' },
-        '.cm-scroller': { overflow: 'auto', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace' },
+        '&': { fontSize: '13px' },
+        '.cm-scroller': {
+          overflow: 'auto !important',
+          fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
+        },
         '.cm-content': { padding: '12px 0' },
         '.cm-gutters': {
           border: 'none',
@@ -53,6 +62,14 @@ export function ListFileEditorDialog({
     ],
     [],
   );
+
+  useEffect(() => {
+    if (!open) return;
+    const syncHeight = () => setEditorHeight(resolveEditorHeight());
+    syncHeight();
+    window.addEventListener('resize', syncHeight);
+    return () => window.removeEventListener('resize', syncHeight);
+  }, [open]);
 
   useEffect(() => {
     if (!open || !fileName) {
@@ -107,82 +124,62 @@ export function ListFileEditorDialog({
   };
 
   return (
-    <Dialog
-      open={open}
-      onClose={handleClose}
-      fullWidth
-      maxWidth="md"
-      slotProps={{
-        paper: {
-          sx: {
-            height: 'min(80vh, 720px)',
-            display: 'flex',
-            flexDirection: 'column',
-          },
-        },
-      }}
-    >
+    <Dialog open={open} onClose={handleClose} fullWidth maxWidth="md">
       <DialogTitle sx={{ pb: 1 }}>
         <Stack spacing={0.25}>
           <Typography variant="overline" color="text.secondary" sx={{ lineHeight: 1.2 }}>
             {t('versions.lists')}
           </Typography>
-          <Typography component="span" variant="h6" sx={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace' }}>
+          <Typography
+            component="span"
+            variant="h6"
+            sx={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace' }}
+          >
             {fileName ?? t('versions.lists')}
           </Typography>
         </Stack>
       </DialogTitle>
-      <DialogContent
-        sx={{
-          flex: 1,
-          minHeight: 0,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 1.5,
-          overflow: 'hidden',
-          px: 2,
-          pb: 1,
-        }}
-      >
-        {error && <Alert severity="error">{error}</Alert>}
-        {loading ? (
-          <Box flex={1} display="flex" alignItems="center" justifyContent="center">
-            <CircularProgress size={28} />
-          </Box>
-        ) : (
-          <Box
-            sx={{
-              flex: 1,
-              minHeight: 0,
-              overflow: 'hidden',
-              border: 1,
-              borderColor: 'divider',
-              borderRadius: 2,
-              bgcolor: 'action.hover',
-              '& .cm-editor': { height: '100%', outline: 'none' },
-              '& .cm-focused': { outline: 'none' },
-            }}
-          >
-            <CodeMirror
-              value={draft}
-              height="100%"
-              theme={editorTheme}
-              editable={!(Boolean(error) && !original)}
-              basicSetup={{
-                lineNumbers: true,
-                foldGutter: false,
-                highlightActiveLineGutter: true,
-                highlightActiveLine: true,
-                bracketMatching: false,
-                closeBrackets: false,
-                autocompletion: false,
-                searchKeymap: true,
+      <DialogContent sx={{ overflow: 'hidden', px: 2, pb: 1 }}>
+        <Stack spacing={1.5}>
+          {error && <Alert severity="error">{error}</Alert>}
+          {loading ? (
+            <Box display="flex" justifyContent="center" py={6}>
+              <CircularProgress size={28} />
+            </Box>
+          ) : (
+            <Box
+              sx={{
+                border: 1,
+                borderColor: 'divider',
+                borderRadius: 2,
+                overflow: 'hidden',
+                bgcolor: 'action.hover',
+                '& .cm-editor': { outline: 'none' },
+                '& .cm-focused': { outline: 'none' },
               }}
-              extensions={extensions}
-              onChange={setDraft}
-            />
-          </Box>
-        )}
+            >
+              <CodeMirror
+                value={draft}
+                height={`${editorHeight}px`}
+                width="100%"
+                theme={editorTheme}
+                editable={!(Boolean(error) && !original)}
+                basicSetup={{
+                  lineNumbers: true,
+                  foldGutter: false,
+                  highlightActiveLineGutter: true,
+                  highlightActiveLine: true,
+                  bracketMatching: false,
+                  closeBrackets: false,
+                  autocompletion: false,
+                  searchKeymap: true,
+                }}
+                extensions={extensions}
+                onChange={setDraft}
+              />
+            </Box>
+          )}
+        </Stack>
       </DialogContent>
       <DialogActions sx={{ px: 2, pb: 2 }}>
         <Button variant="text" disabled={!canClose} onClick={handleClose}>
