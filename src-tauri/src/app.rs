@@ -47,12 +47,32 @@ pub fn save_settings(
         let path = crate::library::validate_library_path(path)?;
         fs::create_dir_all(path.join("versions")).map_err(|e| e.to_string())?;
     }
+    sync_autostart(&app, settings.autostart)?;
     let mut saved = state.settings.lock().map_err(|e| e.to_string())?;
     state.persist(&settings)?;
     *saved = settings;
     drop(saved);
     let _ = crate::tray::rebuild_menu(&app);
     Ok(())
+}
+
+fn sync_autostart(app: &AppHandle, enabled: bool) -> Result<(), String> {
+    use tauri_plugin_autostart::ManagerExt;
+    let launcher = app.autolaunch();
+    if enabled {
+        launcher
+            .enable()
+            .map_err(|_| "error.autostart.failed".to_string())?;
+    } else {
+        launcher
+            .disable()
+            .map_err(|_| "error.autostart.failed".to_string())?;
+    }
+    Ok(())
+}
+
+pub(crate) fn apply_autostart(app: &AppHandle, enabled: bool) -> Result<(), String> {
+    sync_autostart(app, enabled)
 }
 pub fn administrator() -> bool {
     std::process::Command::new("powershell").args(["-NoProfile", "-Command", "([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)"]).output().map(|o| String::from_utf8_lossy(&o.stdout).trim().eq_ignore_ascii_case("true")).unwrap_or(false)

@@ -123,7 +123,7 @@ export const ru: Record<TranslationKey, string> = {
   'service.notInstalled': 'Служба zapret не установлена',
 
   'settings.title': 'Настройки',
-  'settings.subtitle': 'Оформление, папка библиотеки, обновления и сведения о Zapretyd.',
+  'settings.subtitle': 'Оформление, автозапуск, папка библиотеки и сведения о Zapretyd.',
   'settings.appearanceTitle': 'Оформление',
   'settings.appearanceHint': 'Тема и язык интерфейса Zapretyd.',
   'settings.theme': 'Тема',
@@ -136,16 +136,22 @@ export const ru: Record<TranslationKey, string> = {
   'settings.languageSystem': 'Системный',
   'settings.languageEn': 'English',
   'settings.languageRu': 'Русский',
+  'settings.startupTitle': 'Автозапуск',
+  'settings.startupHint': 'Запускать Zapretyd автоматически при входе в Windows.',
+  'settings.autostart': 'Запускать при входе в систему',
+  'settings.autostartHint': 'Добавляет Zapretyd в автозагрузку Windows.',
+  'settings.startMinimized': 'Запускать свёрнутым',
+  'settings.startMinimizedHint':
+    'При автозапуске скрывать окно в системный трей.',
   'settings.libraryTitle': 'Библиотека версий',
   'settings.libraryHint':
     'Здесь хранятся установленные релизы.',
   'settings.libraryNotSelected': 'Не выбрана',
   'settings.changeFolder': 'Изменить папку',
   'settings.useAppFolder': 'Хранить в папке приложения',
-  'settings.updatesTitle': 'Обновления',
-  'settings.updatesHint':
-    'При запуске Zapretyd проверяет официальный репозиторий GitHub на наличие релизов zapret.',
   'settings.upstreamRepo': 'Исходный репозиторий',
+  'settings.updatesHint':
+    'При запуске Zapretyd проверяет этот репозиторий GitHub на наличие релизов zapret.',
   'settings.aboutTitle': 'О проекте',
   'settings.aboutBody':
     'Zapretyd — менеджер для Flowseal/zapret-discord-youtube на Windows. Он скачивает официальные релизы, хранит версии в библиотеке и помогает активировать стратегию как службу Windows zapret.',
@@ -182,6 +188,8 @@ export const ru: Record<TranslationKey, string> = {
   'error.library.versionNotFound': 'Версия не найдена',
   'error.library.cannotRemoveActive': 'Нельзя удалить активную версию',
   'error.library.unsafeZipPath': 'Архив содержит небезопасный путь',
+
+  'error.autostart.failed': 'Не удалось обновить автозагрузку Windows',
 
   'error.release.fetchFailed': 'Не удалось получить релиз',
   'error.release.noZipAsset': 'В последнем релизе нет ZIP-архива для Windows',

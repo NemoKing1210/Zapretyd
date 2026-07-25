@@ -12,6 +12,7 @@ import {
   Button,
   Card,
   CardContent,
+  Divider,
   FormControl,
   FormControlLabel,
   InputLabel,
@@ -176,6 +177,14 @@ export function SettingsPage({
     await onSave({ ...settings, theme: next }, 'theme');
   };
 
+  const changeAutostart = async (enabled: boolean) => {
+    await onSave({ ...settings, autostart: enabled });
+  };
+
+  const changeStartMinimized = async (enabled: boolean) => {
+    await onSave({ ...settings, startMinimized: enabled });
+  };
+
   const openPath = (path: string) => {
     void api.openDirectory(path);
   };
@@ -250,6 +259,43 @@ export function SettingsPage({
         </Stack>
       </SettingsSection>
 
+      <SettingsSection title={t('settings.startupTitle')} hint={t('settings.startupHint')}>
+        <Stack spacing={1.5}>
+          <Box>
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={Boolean(settings.autostart)}
+                  onChange={(_, checked) => void changeAutostart(checked)}
+                />
+              }
+              label={t('settings.autostart')}
+              sx={{ display: 'flex' }}
+            />
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, ml: 5.75 }}>
+              {t('settings.autostartHint')}
+            </Typography>
+          </Box>
+          {Boolean(settings.autostart) && (
+            <Box>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={Boolean(settings.startMinimized)}
+                    onChange={(_, checked) => void changeStartMinimized(checked)}
+                  />
+                }
+                label={t('settings.startMinimized')}
+                sx={{ display: 'flex' }}
+              />
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, ml: 5.75 }}>
+                {t('settings.startMinimizedHint')}
+              </Typography>
+            </Box>
+          )}
+        </Stack>
+      </SettingsSection>
+
       <SettingsSection title={t('settings.libraryTitle')} hint={t('settings.libraryHint')}>
         {settings.libraryPath ? (
           <Link
@@ -298,28 +344,6 @@ export function SettingsPage({
             <ErrorAlert message={t('error.generic')} details={libraryError} />
           </Box>
         )}
-      </SettingsSection>
-
-      <SettingsSection title={t('settings.updatesTitle')} hint={t('settings.updatesHint')}>
-        <Typography variant="body2" color="text.secondary">
-          {t('settings.upstreamRepo')}
-        </Typography>
-        <Link
-          component="button"
-          type="button"
-          variant="body1"
-          onClick={() => openExternal(UPSTREAM_REPO_URL)}
-          sx={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 0.75,
-            mt: 0.5,
-            cursor: 'pointer',
-          }}
-        >
-          {UPSTREAM_REPO_LABEL}
-          <OpenInNewOutlined sx={{ fontSize: 16 }} />
-        </Link>
       </SettingsSection>
 
       <SettingsSection
@@ -378,6 +402,31 @@ export function SettingsPage({
           >
             {t('settings.openGitHub')}
           </Button>
+          <Divider sx={{ my: 0.5 }} />
+          <Box>
+            <Typography variant="body2" color="text.secondary">
+              {t('settings.upstreamRepo')}
+            </Typography>
+            <Link
+              component="button"
+              type="button"
+              variant="body1"
+              onClick={() => openExternal(UPSTREAM_REPO_URL)}
+              sx={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 0.75,
+                mt: 0.25,
+                cursor: 'pointer',
+              }}
+            >
+              {UPSTREAM_REPO_LABEL}
+              <OpenInNewOutlined sx={{ fontSize: 16 }} />
+            </Link>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+              {t('settings.updatesHint')}
+            </Typography>
+          </Box>
         </Stack>
       </SettingsSection>
     </Stack>

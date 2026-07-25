@@ -11,6 +11,10 @@ pub struct AppSettings {
     pub locale: String,
     #[serde(default)]
     pub cached_latest_tag: Option<String>,
+    #[serde(default)]
+    pub autostart: bool,
+    #[serde(default)]
+    pub start_minimized: bool,
 }
 
 fn default_locale() -> String {

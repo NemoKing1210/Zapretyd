@@ -9,15 +9,39 @@ mod window_chrome;
 use app::AppState;
 use tauri::{Manager, RunEvent, WindowEvent};
 
+const AUTOSTART_ARG: &str = "--autostart";
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(
+            tauri_plugin_autostart::Builder::new()
+                .arg(AUTOSTART_ARG)
+                .build(),
+        )
         .setup(|app| {
-            app.manage(AppState::load(app.path().app_config_dir()?)?);
+            let state = AppState::load(app.path().app_config_dir()?)?;
+            let settings = state
+                .settings
+                .lock()
+                .map_err(|e| e.to_string())?
+                .clone();
+            app.manage(state);
+
             window_chrome::init_window_chrome(app.handle());
             tray::init_tray(app.handle())?;
+
+            let _ = app::apply_autostart(app.handle(), settings.autostart);
+
+            let from_autostart = std::env::args().any(|arg| arg == AUTOSTART_ARG);
+            if from_autostart && settings.start_minimized {
+                if let Some(window) = app.get_webview_window("main") {
+                    let _ = window.hide();
+                }
+            }
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

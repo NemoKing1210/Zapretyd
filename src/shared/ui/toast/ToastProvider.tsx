@@ -62,10 +62,12 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                 <Button
                   color="inherit"
                   size="small"
+                  variant="text"
                   onClick={() => {
                     current.action?.onClick();
                     dismiss();
                   }}
+                  sx={{ fontWeight: 700 }}
                 >
                   {current.action.label}
                 </Button>

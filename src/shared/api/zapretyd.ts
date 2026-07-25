@@ -10,6 +10,8 @@ export type AppSettings = {
   theme: string;
   locale?: string;
   cachedLatestTag?: string;
+  autostart?: boolean;
+  startMinimized?: boolean;
 };
 
 export function normalizeThemeMode(theme: string | undefined): ThemeMode {

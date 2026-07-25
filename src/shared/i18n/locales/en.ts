@@ -121,7 +121,7 @@ export const en = {
   'service.notInstalled': 'zapret service is not installed',
 
   'settings.title': 'Settings',
-  'settings.subtitle': 'Appearance, library path, updates, and about Zapretyd.',
+  'settings.subtitle': 'Appearance, startup, library path, and about Zapretyd.',
   'settings.appearanceTitle': 'Appearance',
   'settings.appearanceHint': 'Theme and language for the Zapretyd interface.',
   'settings.theme': 'Theme',
@@ -134,16 +134,22 @@ export const en = {
   'settings.languageSystem': 'System',
   'settings.languageEn': 'English',
   'settings.languageRu': 'Russian',
+  'settings.startupTitle': 'Startup',
+  'settings.startupHint': 'Launch Zapretyd automatically when Windows starts.',
+  'settings.autostart': 'Launch at startup',
+  'settings.autostartHint': 'Registers Zapretyd in Windows startup apps.',
+  'settings.startMinimized': 'Start minimized',
+  'settings.startMinimizedHint':
+    'When launched at startup, hide the window to the system tray.',
   'settings.libraryTitle': 'Version library',
   'settings.libraryHint':
     'Installed releases are stored here.',
   'settings.libraryNotSelected': 'Not selected',
   'settings.changeFolder': 'Change folder',
   'settings.useAppFolder': 'Store in the app folder',
-  'settings.updatesTitle': 'Updates',
-  'settings.updatesHint':
-    'Zapretyd checks the official GitHub repository for zapret releases on launch.',
   'settings.upstreamRepo': 'Source repository',
+  'settings.updatesHint':
+    'Zapretyd checks this GitHub repository for zapret releases on launch.',
   'settings.aboutTitle': 'About',
   'settings.aboutBody':
     'Zapretyd is a Windows desktop manager for Flowseal/zapret-discord-youtube. It downloads official releases, keeps versions in a library, and helps activate a strategy as the Windows zapret service.',
@@ -180,6 +186,8 @@ export const en = {
   'error.library.versionNotFound': 'Version not found',
   'error.library.cannotRemoveActive': 'Cannot remove the active version',
   'error.library.unsafeZipPath': 'Archive contains an unsafe path',
+
+  'error.autostart.failed': 'Failed to update Windows startup registration',
 
   'error.release.fetchFailed': 'Failed to fetch release',
   'error.release.noZipAsset': 'Latest release has no Windows ZIP asset',
