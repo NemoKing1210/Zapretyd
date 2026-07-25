@@ -41,13 +41,16 @@ describe('i18n', () => {
     expect(translateError('error.library.notConfigured')).toBe('Не настроена библиотека');
   });
 
-  it('keeps technical detail for debug translation', () => {
+  it('keeps a short technical detail for UI translation', () => {
     setLocale('en');
     expect(
       translateError(
         'error.release.rateLimited|HTTP status client error (403 rate limit exceeded)',
       ),
     ).toContain('HTTP status client error');
+    expect(
+      translateError('error.service.removeFailed|sc delete zapret\nexit=1\nstdout:\nFAILED 1072'),
+    ).toBe('Failed to remove zapret service: sc delete zapret');
   });
 
   it('interpolates params', () => {

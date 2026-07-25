@@ -156,6 +156,10 @@ export const en = {
   'settings.libraryNotSelected': 'Not selected',
   'settings.changeFolder': 'Change folder',
   'settings.useAppFolder': 'Store in the app folder',
+  'settings.logsTitle': 'Error logs',
+  'settings.logsHint':
+    'In release builds, errors are written to daily files in this folder (kept for 14 days).',
+  'settings.openLogsFolder': 'Open logs folder',
   'settings.upstreamRepo': 'Source repository',
   'settings.updatesHint':
     'Zapretyd checks this GitHub repository for zapret releases on launch.',

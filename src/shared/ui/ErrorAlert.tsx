@@ -16,21 +16,31 @@ export function ErrorAlert({
   details,
   severity = 'error',
   action,
+  onClose,
 }: {
   message: string;
   /** Technical / raw error — shown only in development inside an expandable block. */
   details?: string;
   severity?: AlertProps['severity'];
   action?: ReactNode;
+  onClose?: () => void;
 }) {
   const { t, translateError } = useTranslation();
   const detailText = details?.trim() ? translateError(details) : '';
   const showDetails = import.meta.env.DEV && Boolean(detailText);
+  // Prefer a translated backend code as the primary message when available.
+  const displayMessage =
+    detailText && detailText !== details?.trim() ? detailText : message;
 
   return (
-    <Alert severity={severity} action={action} sx={{ alignItems: 'flex-start' }}>
+    <Alert
+      severity={severity}
+      action={action}
+      onClose={onClose}
+      sx={{ alignItems: 'flex-start' }}
+    >
       <Box>
-        {message}
+        {displayMessage}
         {showDetails && (
           <Accordion
             disableGutters
@@ -63,7 +73,7 @@ export function ErrorAlert({
                   fontFamily: 'ui-monospace, Consolas, monospace',
                 }}
               >
-                {detailText}
+                {details}
               </Typography>
             </AccordionDetails>
           </Accordion>

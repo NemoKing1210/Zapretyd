@@ -56,10 +56,13 @@ export function t(
 
 export function translateError(error: string, locale: Locale = currentLocale): string {
   const [code, ...rest] = error.split('|');
-  const detail = rest.join('|');
+  const detail = rest.join('|').trim();
   if (errorKeys.has(code)) {
     const translated = t(code as TranslationKey, undefined, locale);
-    return detail ? `${translated}: ${detail}` : translated;
+    if (!detail) return translated;
+    // Keep UI toasts/alerts readable; full multi-line diagnostics go to the error log.
+    const short = detail.split(/\r?\n/, 1)[0]!.trim().slice(0, 160);
+    return short ? `${translated}: ${short}` : translated;
   }
   return error;
 }
@@ -78,7 +81,6 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   const [locale, setLocaleState] = useState<Locale>('en');
   const [localePreference, setLocalePreferenceState] = useState<LocalePreference>('system');
   const [systemLocale, setSystemLocale] = useState('en-US');
-  const [ready, setReady] = useState(false);
 
   const applyPreference = useCallback((preference: LocalePreference, nextSystemLocale: string) => {
     const next = resolveLocale(preference, nextSystemLocale);
@@ -88,6 +90,8 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
+    // Render immediately with English defaults; refine locale when IPC returns.
+    // Avoid blank window if systemLocale/settings are slow.
     Promise.all([api.systemLocale(), api.settings()])
       .then(([nextSystemLocale, settings]) => {
         setSystemLocale(nextSystemLocale);
@@ -97,8 +101,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
         setLocale('en');
         setLocaleState('en');
         setLocalePreferenceState('system');
-      })
-      .finally(() => setReady(true));
+      });
   }, [applyPreference]);
 
   const setLocalePreference = useCallback(
@@ -113,8 +116,6 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     [locale],
   );
   const translateErr = useCallback((error: string) => translateError(error, locale), [locale]);
-
-  if (!ready) return null;
 
   return createElement(
     I18nContext.Provider,

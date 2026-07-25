@@ -1,5 +1,7 @@
 mod app;
+mod error_log;
 mod library;
+mod process_win;
 mod releases;
 mod service;
 mod tray;
@@ -22,7 +24,9 @@ pub fn run() {
                 .build(),
         )
         .setup(|app| {
-            let state = AppState::load(app.path().app_config_dir()?)?;
+            let config_dir = app.path().app_config_dir()?;
+            error_log::install_panic_hook(config_dir.clone());
+            let state = AppState::load(config_dir)?;
             let settings = state
                 .settings
                 .lock()
@@ -66,6 +70,9 @@ pub fn run() {
             library::delete_version_list_file,
             library::restore_version_list_file,
             library::open_directory,
+            error_log::append_error_logs,
+            error_log::get_logs_dir,
+            error_log::open_logs_directory,
             service::get_service_status,
             service::activate_strategy,
             service::stop_service,

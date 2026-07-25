@@ -92,6 +92,11 @@ export const api = {
     invoke<void>('restore_version_list_file', { tag, name }),
   openDirectory: (path: string) => invoke<void>('open_directory', { path }),
   openUrl: (url: string) => openerOpenUrl(url),
+  appendErrorLogs: (
+    entries: Array<{ message: string; raw: string; source: string; at: number }>,
+  ) => invoke<void>('append_error_logs', { entries }),
+  logsDir: () => invoke<string>('get_logs_dir'),
+  openLogsDirectory: () => invoke<void>('open_logs_directory'),
   status: () => invoke<ServiceStatus>('get_service_status'),
   activate: (strategy: StrategyInfo) => invoke<void>('activate_strategy', { strategy }),
   stop: () => invoke<void>('stop_service'),

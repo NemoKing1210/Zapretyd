@@ -59,20 +59,21 @@ function AppBody() {
   }, [translateError, t, showToast]);
 
   const openAllVersions = useCallback(() => {
+    setError('');
     setVersionsTab('all');
     setPage('versions');
   }, []);
 
-  const showError = useCallback((cause: unknown) => {
+  const showError = useCallback((cause: unknown, source = 'app') => {
     const raw = String(cause);
     reportCaughtError(cause, {
-      source: 'app',
+      source,
       translate: translateErrorRef.current,
     });
     setError(raw);
     showToastRef.current({
       title: tRef.current('toast.error.title'),
-      description: tRef.current('toast.error.body'),
+      description: translateErrorRef.current(raw) || tRef.current('toast.error.body'),
       severity: 'error',
     });
   }, []);
@@ -82,7 +83,7 @@ function AppBody() {
       setVersions(nextVersions);
       setStatus(nextStatus);
     } catch (cause) {
-      showError(cause);
+      showError(cause, 'app.refresh');
     }
   }, [showError]);
   const refreshCatalog = useCallback(async () => {
@@ -231,7 +232,7 @@ function AppBody() {
         description: t(`toast.${key}.body`, { tag: release.tag }),
       });
     } catch (cause) {
-      showError(cause);
+      showError(cause, force ? 'library.reinstall' : 'library.install');
     } finally {
       setBusy(false);
       setInstallingTag(undefined);
@@ -240,6 +241,7 @@ function AppBody() {
   const runAction = async (
     action: () => Promise<unknown>,
     successToast?: Pick<ShowToastOptions, 'title' | 'description'>,
+    source = 'app.action',
   ) => {
     try {
       setError('');
@@ -247,16 +249,17 @@ function AppBody() {
       await refresh();
       if (successToast) showToast(successToast);
     } catch (cause) {
-      showError(cause);
+      showError(cause, source);
     }
   };
   const serviceAction = async (
     action: () => Promise<unknown>,
     successToast?: Pick<ShowToastOptions, 'title' | 'description'>,
+    source = 'service',
   ) => {
     setServiceBusy(true);
     try {
-      await runAction(action, successToast);
+      await runAction(action, successToast, source);
     } finally {
       setServiceBusy(false);
     }
@@ -267,6 +270,7 @@ function AppBody() {
   }, []);
   const goToPage = useCallback((next: PageKey) => {
     setPage(next);
+    setError('');
     if (next === 'versions') setVersionsTab('installed');
   }, []);
   if (!settings) return null;
@@ -282,25 +286,37 @@ function AppBody() {
         serviceBusy={serviceBusy}
         loadStrategies={api.strategies}
         onActivate={(strategy) =>
-          serviceAction(() => api.activate(strategy), {
-            title: t('toast.serviceActivated.title'),
-            description: t('toast.serviceActivated.body'),
-          })
+          serviceAction(
+            () => api.activate(strategy),
+            {
+              title: t('toast.serviceActivated.title'),
+              description: t('toast.serviceActivated.body'),
+            },
+            'service.activate',
+          )
         }
         onStop={() =>
-          serviceAction(api.stop, {
-            title: t('toast.serviceStopped.title'),
-            description: t('toast.serviceStopped.body'),
-          })
+          serviceAction(
+            api.stop,
+            {
+              title: t('toast.serviceStopped.title'),
+              description: t('toast.serviceStopped.body'),
+            },
+            'service.stop',
+          )
         }
         onRemove={() =>
-          serviceAction(api.removeService, {
-            title: t('toast.serviceRemoved.title'),
-            description: t('toast.serviceRemoved.body'),
-          })
+          serviceAction(
+            api.removeService,
+            {
+              title: t('toast.serviceRemoved.title'),
+              description: t('toast.serviceRemoved.body'),
+            },
+            'service.remove',
+          )
         }
-        onAdmin={() => serviceAction(api.relaunchAsAdmin)}
-        onStrategiesError={showError}
+        onAdmin={() => serviceAction(api.relaunchAsAdmin, undefined, 'service.relaunchAdmin')}
+        onStrategiesError={(cause) => showError(cause, 'service.strategies')}
       />
     ) : page === 'versions' ? (
       <VersionsPage
@@ -316,14 +332,19 @@ function AppBody() {
         installingTag={installingTag}
         view={versionsTab}
         onViewChange={setVersionsTab}
+        onClearError={() => setError('')}
         onInstall={install}
         onRemove={(tag) =>
-          runAction(() => api.removeVersion(tag), {
-            title: t('toast.versionRemoved.title'),
-            description: t('toast.versionRemoved.body', { tag }),
-          })
+          runAction(
+            () => api.removeVersion(tag),
+            {
+              title: t('toast.versionRemoved.title'),
+              description: t('toast.versionRemoved.body', { tag }),
+            },
+            'library.removeVersion',
+          )
         }
-        onOpen={(path) => runAction(() => api.openDirectory(path))}
+        onOpen={(path) => runAction(() => api.openDirectory(path), undefined, 'library.open')}
         onReleasesReachable={markReleasesReachable}
       />
     ) : page === 'logs' && import.meta.env.DEV ? (
@@ -373,7 +394,11 @@ function AppBody() {
         <PageTransition pageKey={page}>
           {error && page !== 'versions' && page !== 'logs' && (
             <Box sx={{ mb: 2 }}>
-              <ErrorAlert message={t('error.generic')} details={error} />
+              <ErrorAlert
+                message={t('error.generic')}
+                details={error}
+                onClose={() => setError('')}
+              />
             </Box>
           )}
           {content}

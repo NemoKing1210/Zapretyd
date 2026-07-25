@@ -1,5 +1,9 @@
 use crate::types::AppSettings;
-use std::{fs, path::PathBuf, sync::Mutex};
+use std::{
+    fs,
+    path::PathBuf,
+    sync::{Mutex, OnceLock},
+};
 use tauri::{AppHandle, State};
 
 pub struct AppState {
@@ -74,20 +78,75 @@ fn sync_autostart(app: &AppHandle, enabled: bool) -> Result<(), String> {
 pub(crate) fn apply_autostart(app: &AppHandle, enabled: bool) -> Result<(), String> {
     sync_autostart(app, enabled)
 }
-pub fn administrator() -> bool {
-    std::process::Command::new("powershell").args(["-NoProfile", "-Command", "([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)"]).output().map(|o| String::from_utf8_lossy(&o.stdout).trim().eq_ignore_ascii_case("true")).unwrap_or(false)
+
+fn detect_administrator() -> bool {
+    #[cfg(windows)]
+    {
+        use std::mem::size_of;
+        use windows::Win32::Foundation::{CloseHandle, HANDLE};
+        use windows::Win32::Security::{
+            GetTokenInformation, TokenElevation, TOKEN_ELEVATION, TOKEN_QUERY,
+        };
+        use windows::Win32::System::Threading::{GetCurrentProcess, OpenProcessToken};
+
+        // IsUserAnAdmin is wrong under UAC: it can be true for a non-elevated admin.
+        // TokenElevation matches the old PowerShell IsInRole(Administrator) check.
+        unsafe {
+            let mut token = HANDLE::default();
+            if OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &mut token).is_err() {
+                return false;
+            }
+            let mut elevation = TOKEN_ELEVATION::default();
+            let mut returned = 0u32;
+            let ok = GetTokenInformation(
+                token,
+                TokenElevation,
+                Some((&raw mut elevation).cast()),
+                size_of::<TOKEN_ELEVATION>() as u32,
+                &mut returned,
+            );
+            let _ = CloseHandle(token);
+            ok.is_ok() && elevation.TokenIsElevated != 0
+        }
+    }
+    #[cfg(not(windows))]
+    {
+        false
+    }
 }
+
+fn detect_system_locale() -> String {
+    #[cfg(windows)]
+    {
+        use windows::Win32::Globalization::GetUserDefaultLocaleName;
+
+        let mut buffer = [0u16; 85]; // LOCALE_NAME_MAX_LENGTH
+        let len = unsafe { GetUserDefaultLocaleName(&mut buffer) };
+        if len > 0 {
+            let name = String::from_utf16_lossy(&buffer[..(len as usize - 1)]);
+            if !name.is_empty() {
+                return name;
+            }
+        }
+        "en-US".into()
+    }
+    #[cfg(not(windows))]
+    {
+        "en-US".into()
+    }
+}
+
+pub fn administrator() -> bool {
+    static CACHED: OnceLock<bool> = OnceLock::new();
+    *CACHED.get_or_init(detect_administrator)
+}
+
 #[tauri::command]
 pub fn get_system_locale() -> String {
-    std::process::Command::new("powershell")
-        .args(["-NoProfile", "-Command", "(Get-Culture).Name"])
-        .output()
-        .ok()
-        .and_then(|output| String::from_utf8(output.stdout).ok())
-        .map(|value| value.trim().to_string())
-        .filter(|value| !value.is_empty())
-        .unwrap_or_else(|| "en-US".into())
+    static CACHED: OnceLock<String> = OnceLock::new();
+    CACHED.get_or_init(detect_system_locale).clone()
 }
+
 #[tauri::command]
 pub fn is_administrator() -> bool {
     administrator()

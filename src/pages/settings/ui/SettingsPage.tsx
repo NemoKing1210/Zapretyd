@@ -346,6 +346,18 @@ export function SettingsPage({
         )}
       </SettingsSection>
 
+      {!import.meta.env.DEV && (
+        <SettingsSection title={t('settings.logsTitle')} hint={t('settings.logsHint')}>
+          <Button
+            variant="outlined"
+            startIcon={<FolderOpenOutlined />}
+            onClick={() => void api.openLogsDirectory()}
+          >
+            {t('settings.openLogsFolder')}
+          </Button>
+        </SettingsSection>
+      )}
+
       <SettingsSection
         title={t('settings.aboutTitle')}
         hint={t('settings.aboutVersion', { version: appVersion })}

@@ -586,7 +586,8 @@ pub fn restore_version_list_file(
 
 #[tauri::command]
 pub fn open_directory(path: String) -> Result<(), String> {
-    std::process::Command::new("explorer")
+    let mut command = std::process::Command::new("explorer");
+    crate::process_win::hide_console(&mut command)
         .arg(path)
         .spawn()
         .map_err(|e| e.to_string())

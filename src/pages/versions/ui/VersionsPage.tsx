@@ -37,6 +37,7 @@ export function VersionsPage({
   installingTag,
   view: viewProp,
   onViewChange,
+  onClearError,
   onInstall,
   onRemove,
   onOpen,
@@ -54,6 +55,7 @@ export function VersionsPage({
   installingTag?: string;
   view?: VersionsTab;
   onViewChange?: (view: VersionsTab) => void;
+  onClearError?: () => void;
   onInstall: (release: ReleaseInfo, force?: boolean) => void | Promise<void>;
   onRemove: (tag: string) => void;
   onOpen: (path: string) => void;
@@ -63,6 +65,10 @@ export function VersionsPage({
   const [uncontrolledView, setUncontrolledView] = useState<ViewMode>('installed');
   const view = viewProp ?? uncontrolledView;
   const setView = (next: ViewMode) => {
+    if (next !== view) {
+      setActionError('');
+      onClearError?.();
+    }
     onViewChange?.(next);
     if (viewProp === undefined) setUncontrolledView(next);
   };
@@ -169,7 +175,14 @@ export function VersionsPage({
         </ToggleButton>
       </ToggleButtonGroup>
       {installedError && view === 'installed' && (
-        <ErrorAlert message={t('error.generic')} details={installedError} />
+        <ErrorAlert
+          message={t('error.generic')}
+          details={installedError}
+          onClose={() => {
+            setActionError('');
+            onClearError?.();
+          }}
+        />
       )}
       <PageTransition pageKey={view}>
         {view === 'installed' ? (
@@ -196,8 +209,8 @@ export function VersionsPage({
             loading={loading || (releasesOnline && !loadedOnce && !listError)}
             loadingMore={loadingMore}
             hasMore={hasMore}
-            error={listError ? t('versions.loadFailed') : error ? t('error.generic') : undefined}
-            errorDetails={listError || error || undefined}
+            error={listError ? t('versions.loadFailed') : undefined}
+            errorDetails={listError || undefined}
             installingTag={busy ? installingTag : undefined}
             onLoadMore={() => void loadPage(page + 1, true)}
             onRetry={() => void loadPage(1, false)}

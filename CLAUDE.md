@@ -29,7 +29,7 @@ Requires Windows 10/11, Node.js 20+, Rust. Admin rights for service create/start
 ## Layout
 
 - `src/` — React 19 + TypeScript + MUI (FSD-style: `app`, `pages`, `widgets`, `features`, `shared`)
-- `src-tauri/` — Rust backend (`app`, `library`, `releases`, `service`, `types`)
+- `src-tauri/` — Rust backend (`app`, `error_log`, `library`, `releases`, `service`, `types`)
 - Tauri commands ↔ frontend via `src/shared/api/zapretyd.ts`
 - Keep TS types in sync with `src-tauri/src/types.rs` (serde `camelCase`)
 

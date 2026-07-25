@@ -158,6 +158,10 @@ export const ru: Record<TranslationKey, string> = {
   'settings.libraryNotSelected': 'Не выбрана',
   'settings.changeFolder': 'Изменить папку',
   'settings.useAppFolder': 'Хранить в папке приложения',
+  'settings.logsTitle': 'Логи ошибок',
+  'settings.logsHint':
+    'В release-сборке ошибки пишутся в дневные файлы в этой папке (хранятся 14 дней).',
+  'settings.openLogsFolder': 'Открыть папку логов',
   'settings.upstreamRepo': 'Исходный репозиторий',
   'settings.updatesHint':
     'При запуске Zapretyd проверяет этот репозиторий GitHub на наличие релизов zapret.',

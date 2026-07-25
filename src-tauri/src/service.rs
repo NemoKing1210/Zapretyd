@@ -1,23 +1,84 @@
 use crate::{
     app::{administrator, AppState},
+    process_win::{decode_console_bytes, hide_console},
     types::{ServiceStatus, StrategyInfo},
 };
 use std::{fs, path::Path, process::Command};
 use tauri::State;
 
+/// Win32 `ERROR_SERVICE_DOES_NOT_EXIST`.
+const SERVICE_MISSING: i32 = 1060;
+
 fn output(program: &str, args: &[&str]) -> String {
-    Command::new(program)
+    let mut command = Command::new(program);
+    hide_console(&mut command)
         .args(args)
         .output()
-        .map(|o| String::from_utf8_lossy(&o.stdout).into_owned())
+        .map(|o| decode_console_bytes(&o.stdout))
         .unwrap_or_default()
 }
-fn success(program: &str, args: &[&str]) -> bool {
-    Command::new(program)
+
+/// Run a Windows helper (`sc`, `reg`, …) and return a multi-line diagnostic on failure.
+fn run_command(program: &str, args: &[&str]) -> Result<(), String> {
+    let cmdline = std::iter::once(program)
+        .chain(args.iter().copied())
+        .collect::<Vec<_>>()
+        .join(" ");
+    let mut command = Command::new(program);
+    let output = hide_console(&mut command)
         .args(args)
-        .status()
-        .is_ok_and(|s| s.success())
+        .output()
+        .map_err(|e| format!("{cmdline}\nfailed to spawn: {e}"))?;
+
+    if output.status.success() {
+        return Ok(());
+    }
+
+    let exit = output
+        .status
+        .code()
+        .map(|c| c.to_string())
+        .unwrap_or_else(|| "terminated".into());
+    let stdout = decode_console_bytes(&output.stdout);
+    let stderr = decode_console_bytes(&output.stderr);
+    let mut detail = format!("{cmdline}\nexit={exit}");
+    let stdout = stdout.trim();
+    let stderr = stderr.trim();
+    if !stdout.is_empty() {
+        detail.push_str("\nstdout:\n");
+        detail.push_str(stdout);
+    }
+    if !stderr.is_empty() {
+        detail.push_str("\nstderr:\n");
+        detail.push_str(stderr);
+    }
+    Err(detail)
 }
+
+fn require_command(code: &str, program: &str, args: &[&str]) -> Result<(), String> {
+    run_command(program, args).map_err(|detail| format!("{code}|{detail}"))
+}
+
+fn service_missing_detail(detail: &str) -> bool {
+    detail
+        .lines()
+        .any(|line| {
+            let line = line.trim();
+            line == format!("exit={SERVICE_MISSING}")
+                || line.contains("FAILED 1060")
+                || line.contains("1060:")
+        })
+}
+
+/// Stop/delete succeed when the service is already gone.
+fn require_service_command(code: &str, args: &[&str]) -> Result<(), String> {
+    match run_command("sc", args) {
+        Ok(()) => Ok(()),
+        Err(detail) if service_missing_detail(&detail) => Ok(()),
+        Err(detail) => Err(format!("{code}|{detail}")),
+    }
+}
+
 pub fn active_strategy_name() -> Result<Option<String>, String> {
     let result = output(
         "reg",
@@ -95,6 +156,39 @@ fn managed_strategy(path: &str, state: &AppState) -> Result<(), String> {
     }
     Ok(())
 }
+
+/// Like Flowseal `set "BIN=%~dp0bin\"` — trailing slash so `%BIN%winws.exe` joins correctly.
+fn dir_with_slash(path: &Path) -> String {
+    let mut s = path.to_string_lossy().into_owned();
+    if !s.ends_with(['\\', '/']) {
+        s.push('\\');
+    }
+    s
+}
+
+/// Defaults match `service.bat` `:game_switch_status` when the filter is off.
+fn resolve_game_filters(root: &Path) -> (String, String, String) {
+    let flag = root.join("utils").join("game_filter.enabled");
+    let mode = fs::read_to_string(flag)
+        .ok()
+        .and_then(|s| s.lines().next().map(|l| l.trim().to_ascii_lowercase()));
+    match mode.as_deref() {
+        Some("all") => (
+            "1024-65535".into(),
+            "1024-65535".into(),
+            "1024-65535".into(),
+        ),
+        Some("tcp") => ("1024-65535".into(), "1024-65535".into(), "12".into()),
+        Some("udp") => ("1024-65535".into(), "12".into(), "1024-65535".into()),
+        _ => ("12".into(), "12".into(), "12".into()),
+    }
+}
+
+/// Escape `"` as `\"` so args survive inside `sc … binPath= "…"`.
+fn escape_quotes_for_sc(args: &str) -> String {
+    args.replace('"', r#"\""#)
+}
+
 fn parse_winws_args(strategy: &Path) -> Result<String, String> {
     let content = fs::read_to_string(strategy).map_err(|e| e.to_string())?;
     let mut command = String::new();
@@ -103,14 +197,25 @@ fn parse_winws_args(strategy: &Path) -> Result<String, String> {
         let line = raw.trim();
         if line.to_ascii_lowercase().contains("winws.exe") {
             capture = true;
-            let after = line.split_once("winws.exe").map(|(_, r)| r).unwrap_or("");
-            command.push_str(after.trim().trim_end_matches('^'));
-            command.push(' ');
+            // Bats use `start … "%BIN%winws.exe" --args` — drop the closing quote after exe.
+            let after = line
+                .split_once("winws.exe")
+                .map(|(_, r)| r)
+                .unwrap_or("")
+                .trim()
+                .trim_start_matches('"')
+                .trim()
+                .trim_end_matches('^')
+                .trim();
+            if !after.is_empty() {
+                command.push_str(after);
+                command.push(' ');
+            }
             if !line.ends_with('^') {
                 break;
             }
         } else if capture {
-            command.push_str(line.trim_end_matches('^'));
+            command.push_str(line.trim_end_matches('^').trim());
             command.push(' ');
             if !line.ends_with('^') {
                 break;
@@ -120,16 +225,37 @@ fn parse_winws_args(strategy: &Path) -> Result<String, String> {
     if command.trim().is_empty() {
         return Err("error.service.winwsNotInStrategy".into());
     }
-    let root = strategy.parent().ok_or("error.service.invalidStrategyPath".to_string())?;
-    let bin = root.join("bin").to_string_lossy().replace('\\', "\\\\");
-    let lists = root.join("lists").to_string_lossy().replace('\\', "\\\\");
+    let root = strategy
+        .parent()
+        .ok_or_else(|| "error.service.invalidStrategyPath".to_string())?;
+    let bin = dir_with_slash(&root.join("bin"));
+    let lists = dir_with_slash(&root.join("lists"));
+    let (game, game_tcp, game_udp) = resolve_game_filters(root);
     Ok(command
         .replace("%BIN%", &bin)
         .replace("%LISTS%", &lists)
-        .replace("^", "")
-        .trim()
-        .to_string())
+        .replace("%GameFilterTCP%", &game_tcp)
+        .replace("%GameFilterUDP%", &game_udp)
+        .replace("%GameFilter%", &game)
+        .replace('^', "")
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" "))
 }
+
+/// Match Flowseal `service.bat`:
+/// `sc create zapret binPath= "\"%BIN_PATH%winws.exe\" !ARGS!" DisplayName= "zapret" start= auto`
+fn create_zapret_service(binary: &Path, args: &str) -> Result<(), String> {
+    let args = escape_quotes_for_sc(args);
+    let cmdline = format!(
+        r#"sc create zapret binPath= "\"{bin}\" {args}" DisplayName= "zapret" start= auto"#,
+        bin = binary.display(),
+        args = args,
+    );
+    // Run via cmd so quoting matches the upstream .bat (CreateProcess alone mangles `=` args).
+    require_command("error.service.createFailed", "cmd.exe", &["/d", "/c", &cmdline])
+}
+
 #[tauri::command]
 pub fn activate_strategy(strategy: StrategyInfo, state: State<AppState>) -> Result<(), String> {
     require_admin()?;
@@ -141,26 +267,15 @@ pub fn activate_strategy(strategy: StrategyInfo, state: State<AppState>) -> Resu
         return Err("error.service.winwsNotFound".into());
     }
     let args = parse_winws_args(file)?;
-    let _ = success("sc", &["stop", "zapret"]);
-    let _ = success("sc", &["delete", "zapret"]);
-    let bin_path = format!("\"{}\" {}", binary.display(), args);
-    if !success(
-        "sc",
-        &[
-            "create",
-            "zapret",
-            &format!("binPath= {bin_path}"),
-            "start= auto",
-            "DisplayName= zapret",
-        ],
-    ) {
-        return Err("error.service.createFailed".into());
-    }
+    let _ = run_command("sc", &["stop", "zapret"]);
+    let _ = run_command("sc", &["delete", "zapret"]);
+    create_zapret_service(&binary, &args)?;
     let filename = file
         .file_name()
         .and_then(|n| n.to_str())
         .ok_or("error.service.invalidFileName".to_string())?;
-    if !success(
+    require_command(
+        "error.service.saveStrategyFailed",
         "reg",
         &[
             "add",
@@ -173,39 +288,40 @@ pub fn activate_strategy(strategy: StrategyInfo, state: State<AppState>) -> Resu
             filename,
             "/f",
         ],
-    ) {
-        return Err("error.service.saveStrategyFailed".into());
-    }
-    if !success("sc", &["start", "zapret"]) {
-        return Err("error.service.startFailed".into());
-    }
+    )?;
+    require_command("error.service.startFailed", "sc", &["start", "zapret"])?;
     Ok(())
 }
 #[tauri::command]
 pub fn stop_service() -> Result<(), String> {
     require_admin()?;
-    if success("sc", &["stop", "zapret"]) {
-        Ok(())
-    } else {
-        Err("error.service.stopFailed".into())
-    }
+    require_service_command("error.service.stopFailed", &["stop", "zapret"])
 }
 #[tauri::command]
 pub fn remove_service() -> Result<(), String> {
     require_admin()?;
-    let _ = success("sc", &["stop", "zapret"]);
-    if success("sc", &["delete", "zapret"]) {
-        Ok(())
-    } else {
-        Err("error.service.removeFailed".into())
-    }
+    let _ = run_command("sc", &["stop", "zapret"]);
+    require_service_command("error.service.removeFailed", &["delete", "zapret"])
 }
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn temp_dir(name: &str) -> std::path::PathBuf {
+        let stamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let dir = std::env::temp_dir().join(format!("zapretyd-{name}-{stamp}"));
+        fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
     #[test]
     fn parses_embedded_command() {
-        let file = std::env::temp_dir().join("zapretyd-test.bat");
+        let dir = temp_dir("parse-simple");
+        let file = dir.join("strategy.bat");
         fs::write(
             &file,
             "@echo off\n%BIN%winws.exe --wf-tcp=80,443 ^\n --hostlist=%LISTS%list.txt",
@@ -213,6 +329,74 @@ mod tests {
         .unwrap();
         let args = parse_winws_args(&file).unwrap();
         assert!(args.contains("--wf-tcp=80,443"));
-        let _ = fs::remove_file(file);
+        assert!(args.contains(r"\lists\list.txt"), "got: {args}");
+        assert!(!args.contains("listslist"));
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn parses_flowseal_start_line_with_quotes_and_filters() {
+        let dir = temp_dir("parse-flowseal");
+        let file = dir.join("general.bat");
+        fs::write(
+            &file,
+            r#"@echo off
+set "BIN=%~dp0bin\"
+set "LISTS=%~dp0lists\"
+start "zapret: test" /min "%BIN%winws.exe" --wf-tcp=80,443,%GameFilterTCP% --wf-udp=443,%GameFilterUDP% ^
+--hostlist="%LISTS%list-general.txt" --dpi-desync-fake-quic="%BIN%quic.bin" --new ^
+--filter-tcp=%GameFilterTCP%
+"#,
+        )
+        .unwrap();
+        let args = parse_winws_args(&file).unwrap();
+        assert!(!args.contains("winws.exe\""));
+        assert!(!args.starts_with('"'), "leftover quote: {args}");
+        assert!(args.contains(r"\lists\list-general.txt"), "got: {args}");
+        assert!(args.contains(r"\bin\quic.bin"), "got: {args}");
+        assert!(!args.contains("listslist"));
+        assert!(!args.contains("binquic"));
+        assert!(args.contains("--wf-tcp=80,443,12"));
+        assert!(args.contains("--wf-udp=443,12"));
+        assert!(args.contains("--filter-tcp=12"));
+        assert!(!args.contains("%GameFilter"));
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn game_filter_all_mode() {
+        let dir = temp_dir("game-all");
+        fs::create_dir_all(dir.join("utils")).unwrap();
+        fs::write(dir.join("utils").join("game_filter.enabled"), "all\n").unwrap();
+        let file = dir.join("s.bat");
+        fs::write(&file, r#"start "x" /min "%BIN%winws.exe" --filter-tcp=%GameFilterTCP%"#).unwrap();
+        let args = parse_winws_args(&file).unwrap();
+        assert!(args.contains("--filter-tcp=1024-65535"));
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn escape_quotes_for_sc_binpath() {
+        assert_eq!(
+            escape_quotes_for_sc(r#"--hostlist="C:\lists\a.txt""#),
+            r#"--hostlist=\"C:\lists\a.txt\""#
+        );
+    }
+
+    #[test]
+    fn run_command_reports_missing_program() {
+        let err = run_command("zapretyd-missing-helper-exe", &["arg"]).unwrap_err();
+        assert!(err.contains("zapretyd-missing-helper-exe"));
+        assert!(err.contains("failed to spawn") || err.contains("exit="));
+    }
+
+    #[test]
+    fn detects_missing_service_exit() {
+        assert!(service_missing_detail(
+            "sc delete zapret\nexit=1060\nstdout:\n[SC] OpenService FAILED 1060:"
+        ));
+        assert!(!service_missing_detail(
+            "sc delete zapret\nexit=5\nstdout:\nAccess is denied."
+        ));
     }
 }

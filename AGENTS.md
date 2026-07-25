@@ -63,6 +63,7 @@ src/                    React frontend (Feature-Sliced Design–style folders)
 src-tauri/              Rust backend
   src/
     app.rs              Settings persistence, admin checks
+    error_log.rs        Daily error log files (release builds)
     library.rs          Version install/remove, ZIP extraction, strategies
     releases.rs         GitHub Releases API
     service.rs          Windows service management (sc, reg, tasklist)
@@ -96,6 +97,11 @@ src-tauri/              Rust backend
 
 - Latest release is fetched from GitHub API: `Flowseal/zapret-discord-youtube/releases/latest`.
 - Only `.zip` Windows assets are selected for download.
+
+### Error logging
+
+- Development: in-memory log on the Logs page (`src/shared/lib/errorLog.ts`).
+- Release builds: errors are appended to daily files under `<app_config_dir>/logs/YYYY-MM-DD.log` (Rust `error_log.rs`); files older than 14 days are pruned. Open the folder from Settings.
 
 ## Development
 
