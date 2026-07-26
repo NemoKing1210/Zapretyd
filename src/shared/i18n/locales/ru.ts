@@ -93,6 +93,17 @@ export const ru: Record<TranslationKey, string> = {
   'overview.cancel': 'Отмена',
   'overview.replace': 'Заменить',
 
+  'tray.loading': 'Загрузка…',
+  'tray.restart': 'Перезапуск',
+  'tray.assign': 'Версия и стратегия',
+  'tray.apply': 'Применить стратегию',
+  'tray.noVersions': 'Нет установленных версий',
+  'tray.adminWarning': 'Для управления службой нужны права администратора.',
+  'tray.relaunchAdmin': 'Запустить от админа',
+  'tray.strategyLine': '{{strategy}} · {{version}}',
+  'tray.openApp': 'Открыть',
+  'tray.quit': 'Выход',
+
   'versions.title': 'Версии',
   'versions.subtitle': 'Каждый релиз хранится изолированно в своей папке.',
   'versions.tabInstalled': 'Установленные',

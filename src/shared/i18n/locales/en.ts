@@ -91,6 +91,17 @@ export const en = {
   'overview.cancel': 'Cancel',
   'overview.replace': 'Replace',
 
+  'tray.loading': 'Loading…',
+  'tray.restart': 'Restart',
+  'tray.assign': 'Version & strategy',
+  'tray.apply': 'Apply strategy',
+  'tray.noVersions': 'No versions installed',
+  'tray.adminWarning': 'Administrator rights are required to manage the service.',
+  'tray.relaunchAdmin': 'Relaunch as admin',
+  'tray.strategyLine': '{{strategy}} · {{version}}',
+  'tray.openApp': 'Open',
+  'tray.quit': 'Quit',
+
   'versions.title': 'Versions',
   'versions.subtitle': 'Each release is stored in its own isolated folder.',
   'versions.tabInstalled': 'Installed',

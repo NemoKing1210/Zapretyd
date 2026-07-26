@@ -80,7 +80,10 @@ pub fn run() {
             service::activate_strategy,
             service::start_service,
             service::stop_service,
-            service::remove_service
+            service::remove_service,
+            tray::show_main_window,
+            tray::quit_app,
+            tray::hide_tray_menu_cmd
         ])
         .build(tauri::generate_context!())
         .expect("error while building Zapretyd");
@@ -92,9 +95,9 @@ pub fn run() {
             ..
         } = event
         {
-            if label == "main" {
+            if label == "main" || label == "tray-menu" {
                 api.prevent_close();
-                if let Some(window) = app.get_webview_window("main") {
+                if let Some(window) = app.get_webview_window(&label) {
                     let _ = window.hide();
                 }
             }

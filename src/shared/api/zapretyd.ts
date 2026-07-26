@@ -103,4 +103,7 @@ export const api = {
   stop: () => invoke<void>('stop_service'),
   removeService: () => invoke<void>('remove_service'),
   syncWindowChrome: (dark: boolean) => invoke<void>('sync_window_chrome', { dark }),
+  showMainWindow: () => invoke<void>('show_main_window'),
+  quitApp: () => invoke<void>('quit_app'),
+  hideTrayMenu: () => invoke<void>('hide_tray_menu_cmd'),
 };

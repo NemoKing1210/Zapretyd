@@ -71,6 +71,7 @@ type I18nContextValue = {
   locale: Locale;
   localePreference: LocalePreference;
   setLocalePreference: (preference: LocalePreference) => void;
+  reloadLocale: () => Promise<void>;
   t: (key: TranslationKey, params?: Record<string, string | number>) => string;
   translateError: (error: string) => string;
 };
@@ -89,20 +90,21 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     setLocalePreferenceState(preference);
   }, []);
 
+  const reloadLocale = useCallback(async () => {
+    const [nextSystemLocale, settings] = await Promise.all([api.systemLocale(), api.settings()]);
+    setSystemLocale(nextSystemLocale);
+    applyPreference(normalizeLocalePreference(settings.locale), nextSystemLocale);
+  }, [applyPreference]);
+
   useEffect(() => {
     // Render immediately with English defaults; refine locale when IPC returns.
     // Avoid blank window if systemLocale/settings are slow.
-    Promise.all([api.systemLocale(), api.settings()])
-      .then(([nextSystemLocale, settings]) => {
-        setSystemLocale(nextSystemLocale);
-        applyPreference(normalizeLocalePreference(settings.locale), nextSystemLocale);
-      })
-      .catch(() => {
-        setLocale('en');
-        setLocaleState('en');
-        setLocalePreferenceState('system');
-      });
-  }, [applyPreference]);
+    void reloadLocale().catch(() => {
+      setLocale('en');
+      setLocaleState('en');
+      setLocalePreferenceState('system');
+    });
+  }, [reloadLocale]);
 
   const setLocalePreference = useCallback(
     (preference: LocalePreference) => {
@@ -124,6 +126,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
         locale,
         localePreference,
         setLocalePreference,
+        reloadLocale,
         t: translate,
         translateError: translateErr,
       },

@@ -1,153 +1,42 @@
 use crate::{
-    app::{elevate_self, get_system_locale, AppState},
-    library::{list_versions_at, managed_library_path, open_directory},
-    service::{get_service_status, stop_service},
+    app::{get_system_locale, AppState},
+    library::{list_versions_at, managed_library_path},
+    service::get_service_status,
 };
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::Duration;
 use tauri::{
     image::Image,
-    menu::{Menu, MenuItem, PredefinedMenuItem, Submenu},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    AppHandle, Manager, Runtime,
+    AppHandle, Emitter, Manager, PhysicalPosition, Rect, Runtime, WebviewUrl,
+    WebviewWindowBuilder,
 };
 
 const TRAY_ID: &str = "main";
-const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
-/// While the context menu may be open, skip `set_menu` — replacing it dismisses the popup.
-static MENU_HOLD_UNTIL_MS: AtomicU64 = AtomicU64::new(0);
+const TRAY_MENU_LABEL: &str = "tray-menu";
+const TRAY_MENU_WIDTH: f64 = 360.0;
+const TRAY_MENU_HEIGHT: f64 = 520.0;
+const TRAY_MENU_GAP: f64 = 8.0;
 
-fn now_ms() -> u64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_millis() as u64)
-        .unwrap_or(0)
-}
-
-fn hold_menu_rebuild(seconds: u64) {
-    MENU_HOLD_UNTIL_MS.store(now_ms().saturating_add(seconds.saturating_mul(1000)), Ordering::Relaxed);
-}
-
-fn menu_rebuild_held() -> bool {
-    now_ms() < MENU_HOLD_UNTIL_MS.load(Ordering::Relaxed)
-}
-
-struct TrayStrings {
-    service_running: &'static str,
-    service_stopped: &'static str,
-    strategy: &'static str,
-    active_version: &'static str,
-    none: &'static str,
-    details: &'static str,
-    zapret: &'static str,
-    winws: &'static str,
-    windivert: &'static str,
-    admin: &'static str,
-    running: &'static str,
-    stopped: &'static str,
-    inactive: &'static str,
-    admin_granted: &'static str,
-    admin_missing: &'static str,
-    update_available: &'static str,
-    up_to_date: &'static str,
-    update_unknown: &'static str,
-    installed: &'static str,
-    library: &'static str,
-    show: &'static str,
-    stop_service: &'static str,
-    relaunch_admin: &'static str,
-    open_library: &'static str,
-    quit: &'static str,
-}
-
-fn strings_en() -> TrayStrings {
-    TrayStrings {
-        service_running: "Service: Running",
-        service_stopped: "Service: Stopped",
-        strategy: "Strategy",
-        active_version: "Active version",
-        none: "—",
-        details: "Details",
-        zapret: "zapret",
-        winws: "winws",
-        windivert: "WinDivert",
-        admin: "Admin",
-        running: "Running",
-        stopped: "Stopped",
-        inactive: "Inactive",
-        admin_granted: "Granted",
-        admin_missing: "Missing",
-        update_available: "Update: {tag} available",
-        up_to_date: "Update: Up to date",
-        update_unknown: "Update: Unknown",
-        installed: "Installed: {n} versions",
-        library: "Library",
-        show: "Show Zapretyd",
-        stop_service: "Stop service",
-        relaunch_admin: "Relaunch as administrator",
-        open_library: "Open library folder",
-        quit: "Quit",
-    }
-}
-
-fn strings_ru() -> TrayStrings {
-    TrayStrings {
-        service_running: "Служба: Работает",
-        service_stopped: "Служба: Остановлена",
-        strategy: "Стратегия",
-        active_version: "Активная версия",
-        none: "—",
-        details: "Подробности",
-        zapret: "zapret",
-        winws: "winws",
-        windivert: "WinDivert",
-        admin: "Админ",
-        running: "Работает",
-        stopped: "Остановлена",
-        inactive: "Неактивен",
-        admin_granted: "Получены",
-        admin_missing: "Нет",
-        update_available: "Обновление: {tag} доступно",
-        up_to_date: "Обновление: Актуальная версия",
-        update_unknown: "Обновление: Неизвестно",
-        installed: "Установлено: {n} версий",
-        library: "Библиотека",
-        show: "Показать Zapretyd",
-        stop_service: "Остановить службу",
-        relaunch_admin: "Перезапустить от администратора",
-        open_library: "Открыть папку библиотеки",
-        quit: "Выход",
-    }
-}
-
-fn resolve_locale<R: Runtime>(app: &AppHandle<R>) -> TrayStrings {
+fn resolve_locale_code<R: Runtime>(app: &AppHandle<R>) -> String {
     let locale = app
         .try_state::<AppState>()
         .and_then(|state| state.settings.lock().ok().map(|s| s.locale.clone()))
         .unwrap_or_else(|| "system".into());
-    let code = if locale == "system" {
+    if locale == "system" {
         get_system_locale()
     } else {
         locale
-    };
-    if code.to_ascii_lowercase().starts_with("ru") {
-        strings_ru()
-    } else {
-        strings_en()
     }
 }
 
-fn truncate_path(path: &str, max: usize) -> String {
-    if path.chars().count() <= max {
-        return path.to_string();
-    }
-    let keep = max.saturating_sub(1);
-    let mut truncated: String = path.chars().take(keep).collect();
-    truncated.push('…');
-    truncated
+fn is_russian<R: Runtime>(app: &AppHandle<R>) -> bool {
+    resolve_locale_code(app)
+        .to_ascii_lowercase()
+        .starts_with("ru")
 }
 
-fn show_main_window<R: Runtime>(app: &AppHandle<R>) {
+pub fn show_main_window_impl<R: Runtime>(app: &AppHandle<R>) {
+    hide_tray_menu(app);
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.show();
         let _ = window.unminimize();
@@ -155,24 +44,31 @@ fn show_main_window<R: Runtime>(app: &AppHandle<R>) {
     }
 }
 
-fn build_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
-    let t = resolve_locale(app);
+pub fn hide_tray_menu<R: Runtime>(app: &AppHandle<R>) {
+    if let Some(window) = app.get_webview_window(TRAY_MENU_LABEL) {
+        let _ = window.hide();
+    }
+}
+
+fn tooltip_text<R: Runtime>(app: &AppHandle<R>) -> String {
     let status = get_service_status();
     let running = status.service_running && status.winws_running;
+    let ru = is_russian(app);
+    let state = if running {
+        if ru {
+            "Работает"
+        } else {
+            "Running"
+        }
+    } else if ru {
+        "Остановлена"
+    } else {
+        "Stopped"
+    };
 
-    let cached_latest = app
-        .try_state::<AppState>()
-        .and_then(|state| {
-            state
-                .settings
-                .lock()
-                .ok()
-                .and_then(|s| s.cached_latest_tag.clone())
-        });
     let library_path = app
         .try_state::<AppState>()
         .and_then(|state| managed_library_path(&state.config_dir).ok());
-
     let versions = library_path
         .as_deref()
         .map(list_versions_at)
@@ -184,212 +80,185 @@ fn build_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<Menu<R>> {
         .iter()
         .find(|v| v.is_active)
         .map(|v| v.tag.as_str())
-        .unwrap_or(t.none);
-    let installed_count = versions.len();
+        .unwrap_or("—");
+    let strategy = status.active_strategy.as_deref().unwrap_or("—");
 
-    let update_text = match &cached_latest {
-        Some(tag) if versions.iter().any(|v| v.tag == *tag) => t.up_to_date.to_string(),
-        Some(tag) => t.update_available.replace("{tag}", tag),
-        None => t.update_unknown.to_string(),
-    };
-
-    let service_text = if running {
-        t.service_running
-    } else {
-        t.service_stopped
-    };
-    let strategy_name = status.active_strategy.as_deref().unwrap_or(t.none);
-    let library_text = match &library_path {
-        Some(path) => format!("{}: {}", t.library, truncate_path(path, 42)),
-        None => t.library.to_string(),
-    };
-
-    let header = MenuItem::with_id(
-        app,
-        "header",
-        format!("Zapretyd v{APP_VERSION}"),
-        false,
-        None::<&str>,
-    )?;
-    let service_item = MenuItem::with_id(app, "info_service", service_text, false, None::<&str>)?;
-    let strategy_item = MenuItem::with_id(
-        app,
-        "info_strategy",
-        format!("{}: {strategy_name}", t.strategy),
-        false,
-        None::<&str>,
-    )?;
-    let version_item = MenuItem::with_id(
-        app,
-        "info_version",
-        format!("{}: {active_tag}", t.active_version),
-        false,
-        None::<&str>,
-    )?;
-
-    let detail_zapret = MenuItem::with_id(
-        app,
-        "detail_zapret",
-        format!(
-            "{}: {}",
-            t.zapret,
-            if status.service_running {
-                t.running
-            } else {
-                t.stopped
-            }
-        ),
-        false,
-        None::<&str>,
-    )?;
-    let detail_winws = MenuItem::with_id(
-        app,
-        "detail_winws",
-        format!(
-            "{}: {}",
-            t.winws,
-            if status.winws_running {
-                t.running
-            } else {
-                t.stopped
-            }
-        ),
-        false,
-        None::<&str>,
-    )?;
-    let detail_windivert = MenuItem::with_id(
-        app,
-        "detail_windivert",
-        format!(
-            "{}: {}",
-            t.windivert,
-            if status.windivert_running {
-                t.running
-            } else {
-                t.inactive
-            }
-        ),
-        false,
-        None::<&str>,
-    )?;
-    let detail_admin = MenuItem::with_id(
-        app,
-        "detail_admin",
-        format!(
-            "{}: {}",
-            t.admin,
-            if status.is_admin {
-                t.admin_granted
-            } else {
-                t.admin_missing
-            }
-        ),
-        false,
-        None::<&str>,
-    )?;
-    let details = Submenu::with_id_and_items(
-        app,
-        "details",
-        t.details,
-        true,
-        &[
-            &detail_zapret,
-            &detail_winws,
-            &detail_windivert,
-            &detail_admin,
-        ],
-    )?;
-
-    let update_item = MenuItem::with_id(app, "info_update", update_text, false, None::<&str>)?;
-    let installed_item = MenuItem::with_id(
-        app,
-        "info_installed",
-        t.installed.replace("{n}", &installed_count.to_string()),
-        false,
-        None::<&str>,
-    )?;
-    let library_item = MenuItem::with_id(app, "info_library", library_text, false, None::<&str>)?;
-
-    let show_item = MenuItem::with_id(app, "show", t.show, true, None::<&str>)?;
-    let quit_item = MenuItem::with_id(app, "quit", t.quit, true, None::<&str>)?;
-
-    let sep1 = PredefinedMenuItem::separator(app)?;
-    let sep2 = PredefinedMenuItem::separator(app)?;
-    let sep3 = PredefinedMenuItem::separator(app)?;
-    let sep4 = PredefinedMenuItem::separator(app)?;
-
-    let menu = Menu::with_items(
-        app,
-        &[
-            &header,
-            &sep1,
-            &service_item,
-            &strategy_item,
-            &version_item,
-            &sep2,
-            &details,
-            &sep3,
-            &update_item,
-            &installed_item,
-            &library_item,
-            &sep4,
-            &show_item,
-        ],
-    )?;
-
-    if running && status.is_admin {
-        let stop_item = MenuItem::with_id(app, "stop", t.stop_service, true, None::<&str>)?;
-        menu.append(&stop_item)?;
-    }
-    if !status.is_admin {
-        let relaunch_item =
-            MenuItem::with_id(app, "relaunch_admin", t.relaunch_admin, true, None::<&str>)?;
-        menu.append(&relaunch_item)?;
-    }
-    if library_path.is_some() {
-        let open_item = MenuItem::with_id(app, "open_library", t.open_library, true, None::<&str>)?;
-        menu.append(&open_item)?;
-    }
-
-    let sep5 = PredefinedMenuItem::separator(app)?;
-    menu.append(&sep5)?;
-    menu.append(&quit_item)?;
-
-    Ok(menu)
+    format!("Zapretyd — {state}\n{active_tag} · {strategy}")
 }
 
-fn tooltip_text<R: Runtime>(app: &AppHandle<R>) -> String {
-    let t = resolve_locale(app);
-    let status = get_service_status();
-    let running = status.service_running && status.winws_running;
-    let state = if running { t.running } else { t.stopped };
-    format!("Zapretyd — {state}")
-}
-
-pub fn rebuild_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
+pub fn refresh_tooltip<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
     let Some(tray) = app.tray_by_id(TRAY_ID) else {
         return Ok(());
     };
-    let menu = build_menu(app)?;
-    tray.set_menu(Some(menu))?;
     tray.set_tooltip(Some(tooltip_text(app)))?;
     Ok(())
 }
 
-fn refresh_tray_idle<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
-    let Some(tray) = app.tray_by_id(TRAY_ID) else {
-        return Ok(());
-    };
-    // Updating tooltip is safe while the menu is open; replacing the menu is not.
-    if menu_rebuild_held() {
-        tray.set_tooltip(Some(tooltip_text(app)))?;
+fn ensure_tray_menu_window<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
+    if app.get_webview_window(TRAY_MENU_LABEL).is_some() {
         return Ok(());
     }
-    rebuild_menu(app)
+
+    let window = WebviewWindowBuilder::new(
+        app,
+        TRAY_MENU_LABEL,
+        WebviewUrl::App("tray.html".into()),
+    )
+    .title("Zapretyd")
+    .inner_size(TRAY_MENU_WIDTH, TRAY_MENU_HEIGHT)
+    .resizable(false)
+    .maximizable(false)
+    .minimizable(false)
+    .closable(false)
+    .decorations(false)
+    .transparent(true)
+    .skip_taskbar(true)
+    .always_on_top(true)
+    .visible(false)
+    .focused(false)
+    .shadow(true)
+    .build()?;
+
+    apply_tray_menu_chrome(&window);
+
+    let handle = app.clone();
+    window.on_window_event(move |event| {
+        if let tauri::WindowEvent::Focused(false) = event {
+            // Delay hide so a right-click on the tray icon can re-show without flicker.
+            let app = handle.clone();
+            std::thread::spawn(move || {
+                std::thread::sleep(Duration::from_millis(180));
+                if let Some(win) = app.get_webview_window(TRAY_MENU_LABEL) {
+                    if !win.is_focused().unwrap_or(false) {
+                        let _ = win.hide();
+                    }
+                }
+            });
+        }
+    });
+
+    Ok(())
+}
+
+#[cfg(windows)]
+fn apply_tray_menu_chrome<R: Runtime>(window: &tauri::WebviewWindow<R>) {
+    use raw_window_handle::{HasWindowHandle, RawWindowHandle};
+    use windows::Win32::Foundation::HWND;
+    use windows::Win32::Graphics::Dwm::{
+        DwmSetWindowAttribute, DWMWA_BORDER_COLOR, DWMWA_COLOR_NONE,
+        DWMWA_WINDOW_CORNER_PREFERENCE, DWMWCP_ROUND,
+    };
+
+    let Ok(handle) = window.window_handle() else {
+        return;
+    };
+    let RawWindowHandle::Win32(win32) = handle.as_raw() else {
+        return;
+    };
+    let hwnd = HWND(win32.hwnd.get() as *mut std::ffi::c_void);
+    let corner = DWMWCP_ROUND;
+    let border = DWMWA_COLOR_NONE;
+    unsafe {
+        let _ = DwmSetWindowAttribute(
+            hwnd,
+            DWMWA_WINDOW_CORNER_PREFERENCE,
+            &corner as *const _ as *const _,
+            std::mem::size_of_val(&corner) as u32,
+        );
+        let _ = DwmSetWindowAttribute(
+            hwnd,
+            DWMWA_BORDER_COLOR,
+            &border as *const _ as *const _,
+            std::mem::size_of_val(&border) as u32,
+        );
+    }
+}
+
+#[cfg(not(windows))]
+fn apply_tray_menu_chrome<R: Runtime>(_window: &tauri::WebviewWindow<R>) {}
+
+fn clamp_to_monitor(
+    x: f64,
+    y: f64,
+    width: f64,
+    height: f64,
+    monitor_pos: PhysicalPosition<i32>,
+    monitor_size: tauri::PhysicalSize<u32>,
+) -> (f64, f64) {
+    let min_x = f64::from(monitor_pos.x);
+    let min_y = f64::from(monitor_pos.y);
+    let max_x = min_x + f64::from(monitor_size.width) - width;
+    let max_y = min_y + f64::from(monitor_size.height) - height;
+    (
+        x.clamp(min_x, max_x.max(min_x)),
+        y.clamp(min_y, max_y.max(min_y)),
+    )
+}
+
+fn show_tray_menu_at<R: Runtime>(app: &AppHandle<R>, rect: &Rect) {
+    if ensure_tray_menu_window(app).is_err() {
+        return;
+    }
+    let Some(window) = app.get_webview_window(TRAY_MENU_LABEL) else {
+        return;
+    };
+
+    let scale = window.scale_factor().unwrap_or(1.0);
+    let icon_pos = rect.position.to_physical::<f64>(scale);
+    let icon_size = rect.size.to_physical::<f64>(scale);
+
+    let width = TRAY_MENU_WIDTH * scale;
+    let height = TRAY_MENU_HEIGHT * scale;
+    let icon_x = icon_pos.x;
+    let icon_y = icon_pos.y;
+    let icon_w = icon_size.width;
+    let icon_h = icon_size.height;
+
+    let mut x = icon_x + (icon_w - width) / 2.0;
+    // Prefer above the tray icon (typical taskbar-bottom layout).
+    let mut y = icon_y - height - TRAY_MENU_GAP;
+    if y < 0.0 {
+        y = icon_y + icon_h + TRAY_MENU_GAP;
+    }
+
+    if let Ok(Some(monitor)) = window.current_monitor() {
+        let (cx, cy) = clamp_to_monitor(
+            x,
+            y,
+            width,
+            height,
+            *monitor.position(),
+            *monitor.size(),
+        );
+        x = cx;
+        y = cy;
+    }
+
+    let _ = window.set_size(tauri::LogicalSize::new(TRAY_MENU_WIDTH, TRAY_MENU_HEIGHT));
+    let _ = window.set_position(PhysicalPosition::new(x, y));
+    let _ = window.show();
+    let _ = window.set_focus();
+    let _ = window.emit("tray-menu-opened", ());
+}
+
+#[tauri::command]
+pub fn show_main_window(app: AppHandle) {
+    show_main_window_impl(&app);
+}
+
+#[tauri::command]
+pub fn quit_app(app: AppHandle) {
+    app.exit(0);
+}
+
+#[tauri::command]
+pub fn hide_tray_menu_cmd(app: AppHandle) {
+    hide_tray_menu(&app);
 }
 
 pub fn init_tray<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
-    let menu = build_menu(app)?;
+    ensure_tray_menu_window(app)?;
+
     let tooltip = tooltip_text(app);
     let icon = match app.default_window_icon() {
         Some(icon) => icon.clone(),
@@ -399,46 +268,24 @@ pub fn init_tray<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
     TrayIconBuilder::with_id(TRAY_ID)
         .icon(icon)
         .tooltip(&tooltip)
-        .menu(&menu)
         .show_menu_on_left_click(false)
-        .on_menu_event(|app, event| match event.id.as_ref() {
-            "show" => show_main_window(app),
-            "stop" => {
-                let _ = stop_service();
-                let _ = rebuild_menu(app);
-            }
-            "relaunch_admin" => {
-                if elevate_self().is_ok() {
-                    app.exit(0);
-                }
-            }
-            "open_library" => {
-                if let Some(path) = app.try_state::<AppState>().and_then(|state| {
-                    managed_library_path(&state.config_dir).ok()
-                }) {
-                    let _ = open_directory(path);
-                }
-            }
-            "quit" => app.exit(0),
-            _ => {}
-        })
         .on_tray_icon_event(|tray, event| {
             let app = tray.app_handle();
             match event {
                 TrayIconEvent::Click {
                     button: MouseButton::Right,
-                    button_state: MouseButtonState::Down,
+                    button_state: MouseButtonState::Up,
+                    rect,
                     ..
                 } => {
-                    // Keep the existing menu; set_menu here would close the popup.
-                    hold_menu_rebuild(30);
+                    show_tray_menu_at(app, &rect);
                 }
                 TrayIconEvent::Click {
                     button: MouseButton::Left,
                     button_state: MouseButtonState::Up,
                     ..
                 } => {
-                    show_main_window(app);
+                    show_main_window_impl(app);
                 }
                 _ => {}
             }
@@ -448,7 +295,7 @@ pub fn init_tray<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
     let refresh = app.clone();
     std::thread::spawn(move || loop {
         std::thread::sleep(Duration::from_secs(5));
-        let _ = refresh_tray_idle(&refresh);
+        let _ = refresh_tooltip(&refresh);
     });
 
     Ok(())

@@ -61,7 +61,7 @@ pub fn save_settings(
     state.persist(&settings)?;
     *saved = settings;
     drop(saved);
-    let _ = crate::tray::rebuild_menu(&app);
+    let _ = crate::tray::refresh_tooltip(&app);
     Ok(())
 }
 
