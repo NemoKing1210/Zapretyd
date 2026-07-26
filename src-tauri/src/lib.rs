@@ -38,10 +38,14 @@ pub fn run() {
 
             let _ = app::apply_autostart(app.handle(), settings.autostart);
 
+            // Window starts with `visible: false` so tray-only autostart never flashes.
+            // Show it for normal launches (and autostart when start_minimized is off).
             let from_autostart = std::env::args().any(|arg| arg == AUTOSTART_ARG);
-            if from_autostart && settings.start_minimized {
+            let start_hidden = from_autostart && settings.start_minimized;
+            if !start_hidden {
                 if let Some(window) = app.get_webview_window("main") {
-                    let _ = window.hide();
+                    let _ = window.show();
+                    let _ = window.set_focus();
                 }
             }
 
