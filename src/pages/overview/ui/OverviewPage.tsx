@@ -1,4 +1,9 @@
-import { DeleteOutline, PauseOutlined, PlayArrowOutlined } from '@mui/icons-material';
+import {
+  DeleteOutline,
+  DescriptionOutlined,
+  PauseOutlined,
+  PlayArrowOutlined,
+} from '@mui/icons-material';
 import {
   Alert,
   Box,
@@ -24,6 +29,12 @@ import { useEffect, useState } from 'react';
 import type { InstalledVersion, ServiceStatus, StrategyInfo } from '../../../shared/api/zapretyd';
 import { useTranslation } from '../../../shared/i18n';
 import type { TranslationKey } from '../../../shared/i18n/locales/en';
+
+function splitFileName(name: string): { base: string; ext: string } {
+  const dot = name.lastIndexOf('.');
+  if (dot <= 0) return { base: name, ext: '' };
+  return { base: name.slice(0, dot), ext: name.slice(dot) };
+}
 
 const runningActionSx = {
   borderColor: (theme: Theme) => alpha(theme.palette.primary.contrastText, 0.45),
@@ -174,6 +185,8 @@ export function OverviewPage({
   const running = Boolean(status?.serviceRunning);
   const statusReady = status !== undefined;
   const message = status?.messageCode ? t(status.messageCode as TranslationKey) : '';
+  const activeStrategyName = status?.activeStrategy;
+  const activeStrategyParts = activeStrategyName ? splitFileName(activeStrategyName) : null;
 
   return (
     <Stack spacing={3}>
@@ -197,7 +210,7 @@ export function OverviewPage({
             <Stack spacing={2}>
               <Skeleton variant="rounded" width={88} height={28} />
               <Skeleton variant="text" width="55%" height={40} />
-              <Skeleton variant="text" width="40%" />
+              <Skeleton variant="rounded" width={220} height={32} />
               <Stack direction="row" spacing={1.5} mt={1}>
                 <Skeleton variant="rounded" width={120} height={36} />
                 <Skeleton variant="rounded" width={140} height={36} />
@@ -228,11 +241,82 @@ export function OverviewPage({
                 <Typography variant="h4">
                   {running ? t('overview.running') : t('overview.stopped')}
                 </Typography>
-                <Typography sx={{ opacity: 0.85, mt: 1 }}>
-                  {status.activeStrategy
-                    ? t('overview.strategy', { name: status.activeStrategy })
-                    : t('overview.pickStrategyHint')}
-                </Typography>
+                {activeStrategyName && activeStrategyParts ? (
+                  <Stack
+                    direction="row"
+                    spacing={1.25}
+                    alignItems="center"
+                    flexWrap="wrap"
+                    useFlexGap
+                    sx={{ mt: 1.75 }}
+                    aria-label={t('overview.strategy', { name: activeStrategyName })}
+                  >
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        opacity: 0.72,
+                        fontWeight: 600,
+                        letterSpacing: 0.06,
+                        textTransform: 'uppercase',
+                      }}
+                    >
+                      {t('overview.strategyLabel')}
+                    </Typography>
+                    <Box
+                      component="span"
+                      title={activeStrategyName}
+                      sx={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 0.75,
+                        maxWidth: '100%',
+                        px: 1.25,
+                        py: 0.625,
+                        borderRadius: 1.5,
+                        border: 1,
+                        fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
+                        fontSize: '0.875rem',
+                        lineHeight: 1.25,
+                        ...(running
+                          ? {
+                              bgcolor: (theme) => alpha(theme.palette.primary.contrastText, 0.14),
+                              borderColor: (theme) =>
+                                alpha(theme.palette.primary.contrastText, 0.32),
+                              color: 'primary.contrastText',
+                            }
+                          : {
+                              bgcolor: 'action.hover',
+                              borderColor: 'divider',
+                              color: 'text.primary',
+                            }),
+                      }}
+                    >
+                      <DescriptionOutlined sx={{ fontSize: 16, opacity: 0.8, flexShrink: 0 }} />
+                      <Box
+                        component="span"
+                        sx={{
+                          minWidth: 0,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        <Box component="span" sx={{ fontWeight: 700 }}>
+                          {activeStrategyParts.base}
+                        </Box>
+                        {activeStrategyParts.ext ? (
+                          <Box component="span" sx={{ fontWeight: 500, opacity: 0.7 }}>
+                            {activeStrategyParts.ext}
+                          </Box>
+                        ) : null}
+                      </Box>
+                    </Box>
+                  </Stack>
+                ) : (
+                  <Typography sx={{ opacity: 0.85, mt: 1 }}>
+                    {t('overview.pickStrategyHint')}
+                  </Typography>
+                )}
                 <Stack direction="row" spacing={1.5} mt={3} flexWrap="wrap" useFlexGap>
                   {status.serviceRunning ? (
                     <Button
