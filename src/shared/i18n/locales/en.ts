@@ -11,8 +11,7 @@ export const en = {
   'shell.checkingReleases': 'Checking releases…',
   'shell.downloadingVersion': 'Downloading…',
   'shell.latestVersion': 'Latest version {{tag}}',
-  'shell.latestVersionHint':
-    'The latest available zapret-discord-youtube release at the moment',
+  'shell.latestVersionHint': 'The latest available zapret-discord-youtube release at the moment',
   'shell.appVersion': 'v{{version}}',
   'shell.appVersionHint': 'Open the Zapretyd GitHub repository',
   'shell.collapseSidebar': 'Collapse sidebar',
@@ -31,7 +30,8 @@ export const en = {
   'toast.languageChanged.title': 'Language updated',
   'toast.languageChanged.body': 'The interface language has been changed.',
   'toast.serviceActivated.title': 'Service started',
-  'toast.serviceActivated.body': 'The zapret service was created and started with the selected strategy.',
+  'toast.serviceActivated.body':
+    'The zapret service was created and started with the selected strategy.',
   'toast.serviceStarted.title': 'Service started',
   'toast.serviceStarted.body': 'The zapret service is running again.',
   'toast.serviceStopped.title': 'Service stopped',
@@ -70,8 +70,7 @@ export const en = {
   'overview.adminRights': 'Administrator rights',
   'overview.adminGranted': 'Granted',
   'overview.adminMissing': 'Not granted',
-  'overview.adminWarning':
-    'Restart the app as administrator to change the Windows service.',
+  'overview.adminWarning': 'Restart the app as administrator to change the Windows service.',
   'overview.restart': 'Restart',
   'overview.assignStrategy': 'Assign strategy',
   'overview.assignStrategyHint':
@@ -131,8 +130,9 @@ export const en = {
   'versions.openOnGitHub': 'Open on GitHub',
   'versions.prerelease': 'Prerelease',
   'versions.lists': 'Lists',
-  'versions.additional': 'Additional',
   'versions.listsEmpty': 'No list files found in this version.',
+  'versions.strategies': 'Strategies',
+  'versions.strategiesEmpty': 'No strategies found in this version.',
   'versions.listsApply': 'Apply',
   'versions.listsEdit': 'Edit',
   'versions.listsDelete': 'Delete',
@@ -164,15 +164,13 @@ export const en = {
   'settings.autostart': 'Launch at startup',
   'settings.autostartHint': 'Registers Zapretyd in Windows startup apps.',
   'settings.startMinimized': 'Start minimized',
-  'settings.startMinimizedHint':
-    'When launched at startup, hide the window to the system tray.',
+  'settings.startMinimizedHint': 'When launched at startup, hide the window to the system tray.',
   'settings.logsTitle': 'Logs',
   'settings.logsHint': 'Errors from the app are saved in this folder.',
   'settings.openLogsFolder': 'Open folder',
   'settings.clearLogs': 'Clear',
   'settings.upstreamRepo': 'Source repository',
-  'settings.updatesHint':
-    'Zapretyd checks this GitHub repository for zapret releases on launch.',
+  'settings.updatesHint': 'Zapretyd checks this GitHub repository for zapret releases on launch.',
   'settings.aboutTitle': 'About',
   'settings.aboutBody':
     'Zapretyd is a Windows desktop manager for Flowseal/zapret-discord-youtube. It downloads official releases, keeps versions in a library, and helps activate a strategy as the Windows zapret service.',
