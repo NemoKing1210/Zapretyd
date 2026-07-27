@@ -134,6 +134,7 @@ export const ru: Record<TranslationKey, string> = {
   'versions.listsEmpty': 'В этой версии нет файлов списков.',
   'versions.strategies': 'Стратегии',
   'versions.strategiesEmpty': 'В этой версии нет стратегий.',
+  'versions.installStrategy': 'Активировать',
   'versions.listsApply': 'Применить',
   'versions.listsEdit': 'Изменить',
   'versions.listsDelete': 'Удалить',

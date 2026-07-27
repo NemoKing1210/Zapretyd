@@ -1,16 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
-import {
-  Box,
-  Chip,
-  Stack,
-  ToggleButton,
-  ToggleButtonGroup,
-  Typography,
-} from '@mui/material';
+import { Box, Chip, Stack, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
 import {
   api,
   type InstalledVersion,
   type ReleaseInfo,
+  type StrategyInfo,
 } from '../../../shared/api/zapretyd';
 import { useTranslation } from '../../../shared/i18n';
 import { reportCaughtError } from '../../../shared/lib/errorLog';
@@ -35,12 +29,16 @@ export function VersionsPage({
   busy,
   error,
   installingTag,
+  isAdmin = false,
+  activeStrategy,
+  activateBusy = false,
   view: viewProp,
   onViewChange,
   onClearError,
   onInstall,
   onRemove,
   onOpen,
+  onActivate,
   onReleasesReachable,
 }: {
   versions: InstalledVersion[];
@@ -53,12 +51,16 @@ export function VersionsPage({
   busy: boolean;
   error?: string;
   installingTag?: string;
+  isAdmin?: boolean;
+  activeStrategy?: string;
+  activateBusy?: boolean;
   view?: VersionsTab;
   onViewChange?: (view: VersionsTab) => void;
   onClearError?: () => void;
   onInstall: (release: ReleaseInfo, force?: boolean) => void | Promise<void>;
   onRemove: (tag: string) => void;
   onOpen: (path: string) => void;
+  onActivate?: (strategy: StrategyInfo) => void | Promise<void>;
   onReleasesReachable: () => void;
 }) {
   const { t, translateError } = useTranslation();
@@ -164,11 +166,7 @@ export function VersionsPage({
       >
         <ToggleButton value="installed" sx={{ gap: 1, px: 2 }}>
           {t('versions.tabInstalled')}
-          <Chip
-            size="small"
-            label={versions.length}
-            sx={{ height: 22, pointerEvents: 'none' }}
-          />
+          <Chip size="small" label={versions.length} sx={{ height: 22, pointerEvents: 'none' }} />
         </ToggleButton>
         <ToggleButton value="all" sx={{ gap: 1, px: 2 }}>
           {t('versions.tabAll')}
@@ -193,6 +191,10 @@ export function VersionsPage({
             shortenPaths={shortenPaths}
             online={releasesOnline}
             installingTag={busy ? installingTag : undefined}
+            isAdmin={isAdmin}
+            activeStrategy={activeStrategy}
+            activateBusy={activateBusy}
+            onActivate={onActivate}
             onReinstall={reinstallTag}
             onRemove={onRemove}
             onOpen={onOpen}

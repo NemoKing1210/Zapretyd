@@ -133,6 +133,7 @@ export const en = {
   'versions.listsEmpty': 'No list files found in this version.',
   'versions.strategies': 'Strategies',
   'versions.strategiesEmpty': 'No strategies found in this version.',
+  'versions.installStrategy': 'Activate',
   'versions.listsApply': 'Apply',
   'versions.listsEdit': 'Edit',
   'versions.listsDelete': 'Delete',

@@ -10,10 +10,7 @@ import {
   type ServiceStatus,
 } from '../shared/api/zapretyd';
 import { useTranslation } from '../shared/i18n';
-import {
-  installGlobalErrorHandlers,
-  reportCaughtError,
-} from '../shared/lib/errorLog';
+import { installGlobalErrorHandlers, reportCaughtError } from '../shared/lib/errorLog';
 import { PageTransition } from '../shared/ui/PageTransition';
 import { ErrorAlert } from '../shared/ui/ErrorAlert';
 import { ToastProvider, useToast } from '../shared/ui/toast';
@@ -110,10 +107,7 @@ function AppBody() {
       } else {
         setReleasesNetwork('ok');
         setReleasesNetworkError(undefined);
-        if (
-          catalog.isNewerThanInstalled &&
-          (!previousTag || previousTag !== catalog.latestTag)
-        ) {
+        if (catalog.isNewerThanInstalled && (!previousTag || previousTag !== catalog.latestTag)) {
           showToastRef.current({
             title: tRef.current('toast.newVersionAvailable.title'),
             description: tRef.current('toast.newVersionAvailable.body', {
@@ -341,10 +335,23 @@ function AppBody() {
         busy={busy}
         error={error}
         installingTag={installingTag}
+        isAdmin={Boolean(status?.isAdmin)}
+        activeStrategy={status?.activeStrategy}
+        activateBusy={serviceBusy}
         view={versionsTab}
         onViewChange={setVersionsTab}
         onClearError={() => setError('')}
         onInstall={install}
+        onActivate={(strategy) =>
+          serviceAction(
+            () => api.activate(strategy),
+            {
+              title: t('toast.serviceActivated.title'),
+              description: t('toast.serviceActivated.body'),
+            },
+            'service.activate',
+          )
+        }
         onRemove={(tag) =>
           runAction(
             () => api.removeVersion(tag),

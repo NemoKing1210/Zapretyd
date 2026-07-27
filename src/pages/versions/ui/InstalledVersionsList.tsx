@@ -58,6 +58,10 @@ export function InstalledVersionsList({
   shortenPaths = false,
   online = true,
   installingTag,
+  isAdmin = false,
+  activeStrategy,
+  activateBusy = false,
+  onActivate,
   onReinstall,
   onRemove,
   onOpen,
@@ -69,6 +73,10 @@ export function InstalledVersionsList({
   shortenPaths?: boolean;
   online?: boolean;
   installingTag?: string;
+  isAdmin?: boolean;
+  activeStrategy?: string;
+  activateBusy?: boolean;
+  onActivate?: (strategy: StrategyInfo) => void | Promise<void>;
   onReinstall: (tag: string) => void | Promise<void>;
   onRemove: (tag: string) => void | Promise<void>;
   onOpen: (path: string) => void;
@@ -295,6 +303,11 @@ export function InstalledVersionsList({
                   <VersionStrategiesPanel
                     items={strategiesPayload.items}
                     error={strategiesPayload.error}
+                    isAdmin={isAdmin}
+                    versionIsActive={version.isActive}
+                    activeStrategy={activeStrategy}
+                    activateBusy={activateBusy}
+                    onActivate={onActivate}
                   />
                 ) : null}
               </AccordionDetails>
