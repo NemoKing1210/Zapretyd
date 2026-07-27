@@ -1,4 +1,4 @@
-import { DeleteOutline, PlayArrowOutlined, StopOutlined } from '@mui/icons-material';
+import { DeleteOutline, PauseOutlined, PlayArrowOutlined } from '@mui/icons-material';
 import {
   Alert,
   Box,
@@ -242,7 +242,7 @@ export function OverviewPage({
                         serviceBusy ? (
                           <CircularProgress size={18} color="inherit" />
                         ) : (
-                          <StopOutlined />
+                          <PauseOutlined />
                         )
                       }
                       disabled={!status.isAdmin || serviceBusy}

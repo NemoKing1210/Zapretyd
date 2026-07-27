@@ -1,9 +1,9 @@
 import {
   AdminPanelSettingsOutlined,
   OpenInNewOutlined,
+  PauseOutlined,
   PlayArrowOutlined,
   RestartAltOutlined,
-  StopOutlined,
 } from '@mui/icons-material';
 import {
   Alert,
@@ -284,13 +284,7 @@ export function TrayMenuApp() {
               variant="outlined"
               color="warning"
               disabled={busy}
-              startIcon={
-                busy ? (
-                  <CircularProgress size={14} color="inherit" />
-                ) : (
-                  <AdminPanelSettingsOutlined fontSize="small" />
-                )
-              }
+              startIcon={busy ? <CircularProgress size={14} color="inherit" /> : undefined}
               onClick={() => void runAction(() => api.relaunchAsAdmin())}
               sx={btnSx}
             >
@@ -306,7 +300,7 @@ export function TrayMenuApp() {
               size="medium"
               variant="outlined"
               color="inherit"
-              startIcon={busy ? <CircularProgress size={18} color="inherit" /> : <StopOutlined />}
+              startIcon={busy ? <CircularProgress size={18} color="inherit" /> : <PauseOutlined />}
               disabled={!canControl}
               onClick={() => void runAction(() => api.stop())}
               sx={btnSx}
@@ -430,7 +424,7 @@ export function TrayMenuApp() {
           onClick={() => {
             void api.showMainWindow().then(() => hideMenu());
           }}
-          sx={{ ...btnSx, flex: '1 1 auto', minWidth: 0, justifyContent: 'flex-start' }}
+          sx={{ ...btnSx, flex: '0 0 auto' }}
         >
           {t('tray.openApp')}
         </Button>
