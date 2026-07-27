@@ -116,7 +116,8 @@ fn ensure_tray_menu_window<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> 
     .always_on_top(true)
     .visible(false)
     .focused(false)
-    .shadow(true)
+    // OS shadow draws a rectangular rim on transparent HWNDs; use CSS shadow instead.
+    .shadow(false)
     .build()?;
 
     apply_tray_menu_chrome(&window);
@@ -146,7 +147,7 @@ fn apply_tray_menu_chrome<R: Runtime>(window: &tauri::WebviewWindow<R>) {
     use windows::Win32::Foundation::HWND;
     use windows::Win32::Graphics::Dwm::{
         DwmSetWindowAttribute, DWMWA_BORDER_COLOR, DWMWA_COLOR_NONE,
-        DWMWA_WINDOW_CORNER_PREFERENCE, DWMWCP_ROUND,
+        DWMWA_WINDOW_CORNER_PREFERENCE, DWMWCP_DONOTROUND,
     };
 
     let Ok(handle) = window.window_handle() else {
@@ -156,7 +157,9 @@ fn apply_tray_menu_chrome<R: Runtime>(window: &tauri::WebviewWindow<R>) {
         return;
     };
     let hwnd = HWND(win32.hwnd.get() as *mut std::ffi::c_void);
-    let corner = DWMWCP_ROUND;
+    // Let CSS border-radius own the shape; DWM rounding + transparent
+    // corners leaves a 1px rectangular rim (especially with OS shadow).
+    let corner = DWMWCP_DONOTROUND;
     let border = DWMWA_COLOR_NONE;
     unsafe {
         let _ = DwmSetWindowAttribute(
