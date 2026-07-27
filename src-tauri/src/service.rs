@@ -108,6 +108,54 @@ pub fn active_strategy_name() -> Result<Option<String>, String> {
     Ok(reg_service_value("zapret-discord-youtube"))
 }
 
+fn strategy_activated_at() -> Option<String> {
+    reg_service_value("zapret-discord-youtube-activated")
+}
+
+/// Convert a Windows `FILETIME` (100-ns since 1601-01-01 UTC) to RFC3339.
+fn filetime_to_rfc3339(high: u32, low: u32) -> Option<String> {
+    let ticks = ((high as u64) << 32) | (low as u64);
+    const EPOCH_DIFF: u64 = 116444736000000000; // 1601 → 1970
+    if ticks < EPOCH_DIFF {
+        return None;
+    }
+    let unix_100ns = ticks - EPOCH_DIFF;
+    let secs = (unix_100ns / 10_000_000) as i64;
+    let nanos = ((unix_100ns % 10_000_000) * 100) as u32;
+    chrono::DateTime::from_timestamp(secs, nanos)
+        .map(|dt| dt.to_rfc3339_opts(chrono::SecondsFormat::Secs, true))
+}
+
+/// Process creation time via `GetProcessTimes` (works for Session 0 service PIDs).
+fn process_started_at(pid: u32) -> Option<String> {
+    #[cfg(windows)]
+    {
+        use windows::Win32::Foundation::CloseHandle;
+        use windows::Win32::System::Threading::{
+            GetProcessTimes, OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION,
+        };
+
+        unsafe {
+            let handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid).ok()?;
+            let mut creation = windows::Win32::Foundation::FILETIME::default();
+            let mut exit = windows::Win32::Foundation::FILETIME::default();
+            let mut kernel = windows::Win32::Foundation::FILETIME::default();
+            let mut user = windows::Win32::Foundation::FILETIME::default();
+            let ok = GetProcessTimes(handle, &mut creation, &mut exit, &mut kernel, &mut user);
+            let _ = CloseHandle(handle);
+            if ok.is_err() {
+                return None;
+            }
+            filetime_to_rfc3339(creation.dwHighDateTime, creation.dwLowDateTime)
+        }
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = pid;
+        None
+    }
+}
+
 /// Version tag written on activate, or inferred from the service `ImagePath`.
 pub fn active_version_tag(library_base: &str) -> Option<String> {
     if let Some(tag) = reg_service_value("zapret-discord-youtube-version") {
@@ -198,8 +246,14 @@ fn process_running(name: &str) -> bool {
 fn probe_service_status() -> ServiceStatus {
     let exists = service_installed("zapret");
     let zapret_running = service_running("zapret");
+    let pid = service_pid("zapret");
     // Prefer tasklist; fall back to service PID — Session 0 processes are sometimes missed.
-    let winws_running = process_running("winws.exe") || service_pid("zapret").is_some();
+    let winws_running = process_running("winws.exe") || pid.is_some();
+    let service_started_at = if zapret_running {
+        pid.and_then(process_started_at)
+    } else {
+        None
+    };
     ServiceStatus {
         is_admin: administrator(),
         service_exists: exists,
@@ -207,6 +261,8 @@ fn probe_service_status() -> ServiceStatus {
         windivert_running: service_running("WinDivert") || service_running("WinDivert14"),
         winws_running,
         active_strategy: active_strategy_name().ok().flatten(),
+        strategy_activated_at: strategy_activated_at(),
+        service_started_at,
         message_code: if exists {
             "service.detected".into()
         } else {
@@ -457,6 +513,22 @@ pub fn activate_strategy(strategy: StrategyInfo, state: State<AppState>) -> Resu
             "/f",
         ],
     )?;
+    let activated_at = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
+    require_command(
+        "error.service.saveStrategyFailed",
+        "reg",
+        &[
+            "add",
+            r"HKLM\System\CurrentControlSet\Services\zapret",
+            "/v",
+            "zapret-discord-youtube-activated",
+            "/t",
+            "REG_SZ",
+            "/d",
+            &activated_at,
+            "/f",
+        ],
+    )?;
     require_command("error.service.startFailed", "sc", &["start", "zapret"])?;
     wait_until_service_running()?;
     invalidate_service_status_cache();
@@ -543,6 +615,23 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("zapretyd-{name}-{stamp}"));
         fs::create_dir_all(&dir).unwrap();
         dir
+    }
+
+    #[test]
+    fn filetime_unix_epoch_is_rfc3339_z() {
+        // 1970-01-01T00:00:00Z as FILETIME
+        const EPOCH_DIFF: u64 = 116444736000000000;
+        let high = (EPOCH_DIFF >> 32) as u32;
+        let low = (EPOCH_DIFF & 0xFFFF_FFFF) as u32;
+        assert_eq!(
+            filetime_to_rfc3339(high, low).as_deref(),
+            Some("1970-01-01T00:00:00Z")
+        );
+    }
+
+    #[test]
+    fn filetime_rejects_pre_unix_epoch() {
+        assert_eq!(filetime_to_rfc3339(0, 0), None);
     }
 
     #[test]

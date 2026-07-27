@@ -20,6 +20,12 @@ describe('sameServiceStatus', () => {
   it('detects field changes', () => {
     expect(sameServiceStatus(base, { ...base, serviceRunning: false })).toBe(false);
     expect(sameServiceStatus(base, { ...base, activeStrategy: 'other.bat' })).toBe(false);
+    expect(
+      sameServiceStatus(base, { ...base, strategyActivatedAt: '2026-07-27T12:00:00Z' }),
+    ).toBe(false);
+    expect(sameServiceStatus(base, { ...base, serviceStartedAt: '2026-07-27T12:00:00Z' })).toBe(
+      false,
+    );
   });
 
   it('handles undefined', () => {

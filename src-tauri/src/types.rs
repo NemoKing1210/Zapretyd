@@ -91,6 +91,12 @@ pub struct ServiceStatus {
     pub windivert_running: bool,
     pub winws_running: bool,
     pub active_strategy: Option<String>,
+    /// When Zapretyd last assigned the strategy (ISO-8601 UTC). Missing for legacy services.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub strategy_activated_at: Option<String>,
+    /// Current zapret process start time (ISO-8601 UTC), when the service is running.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub service_started_at: Option<String>,
     pub message_code: String,
 }
 

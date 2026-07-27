@@ -1,4 +1,4 @@
-import { getLocale } from '../i18n';
+import { getLocale, t } from '../i18n';
 
 const intlLocale = () => (getLocale() === 'ru' ? 'ru-RU' : 'en-US');
 
@@ -38,3 +38,24 @@ export const formatDate = (value?: string) =>
         new Date(value),
       )
     : '—';
+
+/** Compact elapsed time for service uptime (e.g. `2h 14m`, `45s`). */
+export function formatDuration(ms: number): string {
+  if (!Number.isFinite(ms) || ms < 0) ms = 0;
+  const totalSec = Math.floor(ms / 1000);
+  const days = Math.floor(totalSec / 86_400);
+  const hours = Math.floor((totalSec % 86_400) / 3_600);
+  const minutes = Math.floor((totalSec % 3_600) / 60);
+  const seconds = totalSec % 60;
+
+  if (days > 0) {
+    return t('format.duration.daysHours', { days, hours });
+  }
+  if (hours > 0) {
+    return t('format.duration.hoursMinutes', { hours, minutes });
+  }
+  if (minutes > 0) {
+    return t('format.duration.minutesSeconds', { minutes, seconds });
+  }
+  return t('format.duration.seconds', { seconds });
+}

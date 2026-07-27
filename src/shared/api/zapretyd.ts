@@ -62,6 +62,10 @@ export type ServiceStatus = {
   windivertRunning: boolean;
   winwsRunning: boolean;
   activeStrategy?: string;
+  /** ISO-8601 UTC when Zapretyd last assigned the strategy. */
+  strategyActivatedAt?: string;
+  /** ISO-8601 UTC when the current zapret process started. */
+  serviceStartedAt?: string;
   messageCode: string;
 };
 export const api = {

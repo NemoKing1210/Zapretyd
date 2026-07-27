@@ -29,6 +29,7 @@ import { useEffect, useState } from 'react';
 import type { InstalledVersion, ServiceStatus, StrategyInfo } from '../../../shared/api/zapretyd';
 import { useTranslation } from '../../../shared/i18n';
 import type { TranslationKey } from '../../../shared/i18n/locales/en';
+import { formatDate, formatDuration } from '../../../shared/lib/format';
 
 function splitFileName(name: string): { base: string; ext: string } {
   const dot = name.lastIndexOf('.');
@@ -137,6 +138,13 @@ export function OverviewPage({
   const [strategy, setStrategy] = useState('');
   const [confirm, setConfirm] = useState(false);
   const [strategiesLoading, setStrategiesLoading] = useState(false);
+  const [nowMs, setNowMs] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (!status?.serviceStartedAt) return;
+    const id = window.setInterval(() => setNowMs(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, [status?.serviceStartedAt]);
 
   // Prefill empty selectors from the active service (mount / remount after navigation).
   useEffect(() => {
@@ -187,6 +195,12 @@ export function OverviewPage({
   const message = status?.messageCode ? t(status.messageCode as TranslationKey) : '';
   const activeStrategyName = status?.activeStrategy;
   const activeStrategyParts = activeStrategyName ? splitFileName(activeStrategyName) : null;
+  const activatedAt = status?.strategyActivatedAt;
+  const startedAt = status?.serviceStartedAt;
+  const runningFor =
+    running && startedAt
+      ? formatDuration(Math.max(0, nowMs - new Date(startedAt).getTime()))
+      : null;
 
   return (
     <Stack spacing={3}>
@@ -242,76 +256,98 @@ export function OverviewPage({
                   {running ? t('overview.running') : t('overview.stopped')}
                 </Typography>
                 {activeStrategyName && activeStrategyParts ? (
-                  <Stack
-                    direction="row"
-                    spacing={1.25}
-                    alignItems="center"
-                    flexWrap="wrap"
-                    useFlexGap
-                    sx={{ mt: 1.75 }}
-                    aria-label={t('overview.strategy', { name: activeStrategyName })}
-                  >
-                    <Typography
-                      variant="caption"
-                      sx={{
-                        opacity: 0.72,
-                        fontWeight: 600,
-                        letterSpacing: 0.06,
-                        textTransform: 'uppercase',
-                      }}
+                  <>
+                    <Stack
+                      direction="row"
+                      spacing={1.25}
+                      alignItems="center"
+                      flexWrap="wrap"
+                      useFlexGap
+                      sx={{ mt: 1.75 }}
+                      aria-label={t('overview.strategy', { name: activeStrategyName })}
                     >
-                      {t('overview.strategyLabel')}
-                    </Typography>
-                    <Box
-                      component="span"
-                      title={activeStrategyName}
-                      sx={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 0.75,
-                        maxWidth: '100%',
-                        px: 1.25,
-                        py: 0.625,
-                        borderRadius: 1.5,
-                        border: 1,
-                        fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
-                        fontSize: '0.875rem',
-                        lineHeight: 1.25,
-                        ...(running
-                          ? {
-                              bgcolor: (theme) => alpha(theme.palette.primary.contrastText, 0.14),
-                              borderColor: (theme) =>
-                                alpha(theme.palette.primary.contrastText, 0.32),
-                              color: 'primary.contrastText',
-                            }
-                          : {
-                              bgcolor: 'action.hover',
-                              borderColor: 'divider',
-                              color: 'text.primary',
-                            }),
-                      }}
-                    >
-                      <DescriptionOutlined sx={{ fontSize: 16, opacity: 0.8, flexShrink: 0 }} />
-                      <Box
-                        component="span"
+                      <Typography
+                        variant="caption"
                         sx={{
-                          minWidth: 0,
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
+                          opacity: 0.72,
+                          fontWeight: 600,
+                          letterSpacing: 0.06,
+                          textTransform: 'uppercase',
                         }}
                       >
-                        <Box component="span" sx={{ fontWeight: 700 }}>
-                          {activeStrategyParts.base}
-                        </Box>
-                        {activeStrategyParts.ext ? (
-                          <Box component="span" sx={{ fontWeight: 500, opacity: 0.7 }}>
-                            {activeStrategyParts.ext}
+                        {t('overview.strategyLabel')}
+                      </Typography>
+                      <Box
+                        component="span"
+                        title={activeStrategyName}
+                        sx={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 0.75,
+                          maxWidth: '100%',
+                          px: 1.25,
+                          py: 0.625,
+                          borderRadius: 1.5,
+                          border: 1,
+                          fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
+                          fontSize: '0.875rem',
+                          lineHeight: 1.25,
+                          ...(running
+                            ? {
+                                bgcolor: (theme) => alpha(theme.palette.primary.contrastText, 0.14),
+                                borderColor: (theme) =>
+                                  alpha(theme.palette.primary.contrastText, 0.32),
+                                color: 'primary.contrastText',
+                              }
+                            : {
+                                bgcolor: 'action.hover',
+                                borderColor: 'divider',
+                                color: 'text.primary',
+                              }),
+                        }}
+                      >
+                        <DescriptionOutlined sx={{ fontSize: 16, opacity: 0.8, flexShrink: 0 }} />
+                        <Box
+                          component="span"
+                          sx={{
+                            minWidth: 0,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          <Box component="span" sx={{ fontWeight: 700 }}>
+                            {activeStrategyParts.base}
                           </Box>
-                        ) : null}
+                          {activeStrategyParts.ext ? (
+                            <Box component="span" sx={{ fontWeight: 500, opacity: 0.7 }}>
+                              {activeStrategyParts.ext}
+                            </Box>
+                          ) : null}
+                        </Box>
                       </Box>
-                    </Box>
-                  </Stack>
+                    </Stack>
+                    {(activatedAt || runningFor) && (
+                      <Stack
+                        direction="row"
+                        spacing={1.5}
+                        flexWrap="wrap"
+                        useFlexGap
+                        sx={{ mt: 1.25, opacity: 0.8 }}
+                      >
+                        {activatedAt ? (
+                          <Typography variant="caption">
+                            {t('overview.strategyActivated', { when: formatDate(activatedAt) })}
+                          </Typography>
+                        ) : null}
+                        {runningFor ? (
+                          <Typography variant="caption">
+                            {t('overview.runningFor', { duration: runningFor })}
+                          </Typography>
+                        ) : null}
+                      </Stack>
+                    )}
+                  </>
                 ) : (
                   <Typography sx={{ opacity: 0.85, mt: 1 }}>
                     {t('overview.pickStrategyHint')}

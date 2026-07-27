@@ -13,6 +13,8 @@ export function sameServiceStatus(
     a.windivertRunning === b.windivertRunning &&
     a.winwsRunning === b.winwsRunning &&
     a.activeStrategy === b.activeStrategy &&
+    a.strategyActivatedAt === b.strategyActivatedAt &&
+    a.serviceStartedAt === b.serviceStartedAt &&
     a.messageCode === b.messageCode
   );
 }

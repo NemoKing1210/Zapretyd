@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { setLocale } from '../i18n';
-import { formatBytes, formatVersionPath, pathsEqual } from './format';
+import { formatBytes, formatDuration, formatVersionPath, pathsEqual } from './format';
 
 describe('formatBytes', () => {
   it('formats megabytes in English', () => {
@@ -11,6 +11,28 @@ describe('formatBytes', () => {
   it('formats megabytes in Russian', () => {
     setLocale('ru');
     expect(formatBytes(2 * 1024 * 1024)).toMatch(/МБ/i);
+  });
+});
+
+describe('formatDuration', () => {
+  it('formats seconds and mixed units in English', () => {
+    setLocale('en');
+    expect(formatDuration(45_000)).toBe('45s');
+    expect(formatDuration(125_000)).toBe('2m 5s');
+    expect(formatDuration(3_720_000)).toBe('1h 2m');
+    expect(formatDuration(90_000_000)).toBe('1d 1h');
+  });
+
+  it('formats duration in Russian', () => {
+    setLocale('ru');
+    expect(formatDuration(45_000)).toBe('45 с');
+    expect(formatDuration(125_000)).toBe('2 мин 5 с');
+    expect(formatDuration(3_720_000)).toBe('1 ч 2 мин');
+  });
+
+  it('clamps negative values', () => {
+    setLocale('en');
+    expect(formatDuration(-1000)).toBe('0s');
   });
 });
 

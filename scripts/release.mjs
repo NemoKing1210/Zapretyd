@@ -23,8 +23,7 @@ const PATHS = {
   packageLock: join(root, 'package-lock.json'),
   tauriConf: join(root, 'src-tauri', 'tauri.conf.json'),
   cargoToml: join(root, 'src-tauri', 'Cargo.toml'),
-  libraryRs: join(root, 'src-tauri', 'src', 'library.rs'),
-  releasesRs: join(root, 'src-tauri', 'src', 'releases.rs'),
+  httpRs: join(root, 'src-tauri', 'src', 'http.rs'),
 }
 
 const VERSION_FILES = [
@@ -32,8 +31,7 @@ const VERSION_FILES = [
   'package-lock.json',
   'src-tauri/tauri.conf.json',
   'src-tauri/Cargo.toml',
-  'src-tauri/src/library.rs',
-  'src-tauri/src/releases.rs',
+  'src-tauri/src/http.rs',
 ]
 
 function fail(message) {
@@ -147,7 +145,7 @@ function syncVersion(version) {
   )
   writeFileSync(PATHS.cargoToml, cargoNext, 'utf8')
 
-  for (const rsPath of [PATHS.libraryRs, PATHS.releasesRs]) {
+  for (const rsPath of [PATHS.httpRs]) {
     const source = readFileSync(rsPath, 'utf8')
     const next = source.replace(/Zapretyd\/\d+\.\d+/g, userAgent)
     if (!next.includes(userAgent)) {
