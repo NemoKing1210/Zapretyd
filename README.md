@@ -10,6 +10,29 @@ Zapretyd downloads official GitHub releases, keeps each version in an isolated f
 - **Version library** — store multiple releases side by side in the app library folder
 - **Overview** — see service, WinDivert, and `winws.exe` status, then pick a strategy and create, start, stop, or remove the `zapret` Windows service
 - **Safe paths** — the library uses an ASCII-safe folder under the app data directory (or `C:\Zapretyd` as a fallback)
+- **System tray** — quick stop / restart and strategy switch from the tray popup
+
+## Screenshots
+
+<p align="center">
+  <img src="docs/screenshots/gallery.png" alt="Zapretyd — Overview, Versions, and Settings" width="920" />
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/tray-framed.png" alt="Zapretyd system tray" width="280" />
+</p>
+
+<details>
+<summary>Individual screens</summary>
+
+| | |
+| :---: | :---: |
+| **Overview** | **Versions** |
+| <img src="docs/screenshots/overview-framed.png" width="420" alt="Overview" /> | <img src="docs/screenshots/versions-framed.png" width="420" alt="Versions" /> |
+| **Settings** | **System tray** |
+| <img src="docs/screenshots/settings-framed.png" width="420" alt="Settings" /> | <img src="docs/screenshots/tray-framed.png" width="220" alt="Tray" /> |
+
+</details>
 
 ## Download
 
