@@ -29,6 +29,7 @@ export function VersionsPage({
   busy,
   error,
   installingTag,
+  downloadRatio,
   isAdmin = false,
   activeStrategy,
   activateBusy = false,
@@ -51,6 +52,7 @@ export function VersionsPage({
   busy: boolean;
   error?: string;
   installingTag?: string;
+  downloadRatio?: number;
   isAdmin?: boolean;
   activeStrategy?: string;
   activateBusy?: boolean;
@@ -214,6 +216,7 @@ export function VersionsPage({
             error={listError ? t('versions.loadFailed') : undefined}
             errorDetails={listError || undefined}
             installingTag={busy ? installingTag : undefined}
+            downloadRatio={busy ? downloadRatio : undefined}
             onLoadMore={() => void loadPage(page + 1, true)}
             onRetry={() => void loadPage(1, false)}
             onInstall={onInstall}

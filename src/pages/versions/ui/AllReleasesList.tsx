@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { memo, useState } from 'react';
 import { DeleteOutline, DownloadOutlined, ExpandMore, RefreshOutlined } from '@mui/icons-material';
 import {
   Accordion,
@@ -15,6 +15,7 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  LinearProgress,
   Link,
   Skeleton,
   Stack,
@@ -30,7 +31,7 @@ type ConfirmAction =
   | { type: 'reinstall'; release: ReleaseInfo }
   | { type: 'remove'; tag: string };
 
-export function AllReleasesList({
+export const AllReleasesList = memo(function AllReleasesList({
   releases,
   versions,
   latestTag,
@@ -43,6 +44,7 @@ export function AllReleasesList({
   error,
   errorDetails,
   installingTag,
+  downloadRatio,
   onLoadMore,
   onRetry,
   onInstall,
@@ -61,6 +63,7 @@ export function AllReleasesList({
   error?: string;
   errorDetails?: string;
   installingTag?: string;
+  downloadRatio?: number;
   onLoadMore: () => void;
   onRetry?: () => void;
   onInstall: (release: ReleaseInfo, force?: boolean) => void | Promise<void>;
@@ -152,6 +155,13 @@ export function AllReleasesList({
       {releases.map((release) => {
         const installed = installedByTag.get(release.tag);
         const installing = installingTag === release.tag;
+        const notesOpen = expandedTag === release.tag;
+        const progressLabel =
+          installing && downloadRatio != null
+            ? t('versions.downloadingPercent', { percent: Math.round(downloadRatio * 100) })
+            : installing
+              ? t('shell.downloadingVersion')
+              : undefined;
         return (
           <Card key={release.tag}>
             <CardContent sx={{ pb: 1 }}>
@@ -216,7 +226,7 @@ export function AllReleasesList({
                       disabled={busy || installed.isActive || !online}
                       onClick={() => openConfirm({ type: 'reinstall', release })}
                     >
-                      {t('versions.reinstall')}
+                      {progressLabel ?? t('versions.reinstall')}
                     </Button>
                     <Button
                       color="error"
@@ -240,16 +250,24 @@ export function AllReleasesList({
                     onClick={() => onInstall(release)}
                     sx={{ flexShrink: 0 }}
                   >
-                    {t('versions.download')}
+                    {progressLabel ?? t('versions.download')}
                   </Button>
                 )}
               </Stack>
+              {installing && (
+                <LinearProgress
+                  variant={downloadRatio != null ? 'determinate' : 'indeterminate'}
+                  value={downloadRatio != null ? downloadRatio * 100 : undefined}
+                  sx={{ mt: 1.5, borderRadius: 1 }}
+                />
+              )}
             </CardContent>
             <Accordion
               disableGutters
               elevation={0}
-              expanded={expandedTag === release.tag}
+              expanded={notesOpen}
               onChange={(_, open) => setExpandedTag(open ? release.tag : false)}
+              slotProps={{ transition: { unmountOnExit: true } }}
               sx={{
                 bgcolor: 'transparent',
                 '&:before': { display: 'none' },
@@ -261,7 +279,9 @@ export function AllReleasesList({
                 <Typography variant="body2">{t('versions.notes')}</Typography>
               </AccordionSummary>
               <AccordionDetails sx={{ pt: 0 }}>
-                <ReleaseNotesBody body={release.body} htmlUrl={release.htmlUrl} />
+                {notesOpen ? (
+                  <ReleaseNotesBody body={release.body} htmlUrl={release.htmlUrl} />
+                ) : null}
               </AccordionDetails>
             </Accordion>
           </Card>
@@ -327,4 +347,4 @@ export function AllReleasesList({
       </Dialog>
     </Stack>
   );
-}
+});

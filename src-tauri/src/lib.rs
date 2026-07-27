@@ -1,5 +1,6 @@
 mod app;
 mod error_log;
+mod http;
 mod library;
 mod process_win;
 mod releases;

@@ -3,8 +3,33 @@ use crate::{
     process_win::{decode_console_bytes, hide_console},
     types::{ServiceStatus, StrategyInfo},
 };
-use std::{fs, path::Path, process::Command};
+use std::{
+    fs,
+    path::Path,
+    process::Command,
+    sync::{Mutex, OnceLock},
+    time::{Duration, Instant},
+};
 use tauri::State;
+
+/// Shared by UI poll and tray tooltip so concurrent callers reuse one probe.
+const STATUS_CACHE_TTL: Duration = Duration::from_millis(1500);
+
+struct StatusCache {
+    value: Option<(Instant, ServiceStatus)>,
+}
+
+fn status_cache() -> &'static Mutex<StatusCache> {
+    static CACHE: OnceLock<Mutex<StatusCache>> = OnceLock::new();
+    CACHE.get_or_init(|| Mutex::new(StatusCache { value: None }))
+}
+
+/// Drop cached status after create/start/stop/remove so the next read is fresh.
+pub fn invalidate_service_status_cache() {
+    if let Ok(mut cache) = status_cache().lock() {
+        cache.value = None;
+    }
+}
 
 /// Win32 `ERROR_SERVICE_DOES_NOT_EXIST`.
 const SERVICE_MISSING: i32 = 1060;
@@ -170,8 +195,7 @@ fn process_running(name: &str) -> bool {
         .contains(&name.to_ascii_lowercase())
 }
 
-#[tauri::command]
-pub fn get_service_status() -> ServiceStatus {
+fn probe_service_status() -> ServiceStatus {
     let exists = service_installed("zapret");
     let zapret_running = service_running("zapret");
     // Prefer tasklist; fall back to service PID — Session 0 processes are sometimes missed.
@@ -189,6 +213,23 @@ pub fn get_service_status() -> ServiceStatus {
             "service.notInstalled".into()
         },
     }
+}
+
+#[tauri::command]
+pub fn get_service_status() -> ServiceStatus {
+    let now = Instant::now();
+    if let Ok(cache) = status_cache().lock() {
+        if let Some((at, ref status)) = &cache.value {
+            if now.duration_since(*at) < STATUS_CACHE_TTL {
+                return status.clone();
+            }
+        }
+    }
+    let status = probe_service_status();
+    if let Ok(mut cache) = status_cache().lock() {
+        cache.value = Some((Instant::now(), status.clone()));
+    }
+    status
 }
 fn require_admin() -> Result<(), String> {
     if administrator() {
@@ -418,6 +459,7 @@ pub fn activate_strategy(strategy: StrategyInfo, state: State<AppState>) -> Resu
     )?;
     require_command("error.service.startFailed", "sc", &["start", "zapret"])?;
     wait_until_service_running()?;
+    invalidate_service_status_cache();
     Ok(())
 }
 
@@ -450,7 +492,9 @@ pub fn start_service(state: State<AppState>) -> Result<(), String> {
         }
     }
     require_command("error.service.startFailed", "sc", &["start", "zapret"])?;
-    wait_until_service_running()
+    wait_until_service_running()?;
+    invalidate_service_status_cache();
+    Ok(())
 }
 
 /// Match Flowseal install/remove: clear zapret, orphan winws, and leftover WinDivert.
@@ -471,7 +515,9 @@ fn clear_windivert() {
 #[tauri::command]
 pub fn stop_service() -> Result<(), String> {
     require_admin()?;
-    require_service_command("error.service.stopFailed", &["stop", "zapret"])
+    require_service_command("error.service.stopFailed", &["stop", "zapret"])?;
+    invalidate_service_status_cache();
+    Ok(())
 }
 
 #[tauri::command]
@@ -481,6 +527,7 @@ pub fn remove_service() -> Result<(), String> {
     require_service_command("error.service.removeFailed", &["delete", "zapret"])?;
     let _ = run_command("taskkill", &["/IM", "winws.exe", "/F"]);
     clear_windivert();
+    invalidate_service_status_cache();
     Ok(())
 }
 #[cfg(test)]

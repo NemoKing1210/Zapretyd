@@ -4,10 +4,11 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useState,
   type ReactNode,
 } from 'react';
-import { api } from '../api/zapretyd';
+import { api, type AppSettings } from '../api/zapretyd';
 import { en, type TranslationKey } from './locales/en';
 import { ru } from './locales/ru';
 
@@ -70,6 +71,8 @@ export function translateError(error: string, locale: Locale = currentLocale): s
 type I18nContextValue = {
   locale: Locale;
   localePreference: LocalePreference;
+  /** Settings from the first locale bootstrap — reused by App to avoid a second get_settings. */
+  bootstrappedSettings: AppSettings | null;
   setLocalePreference: (preference: LocalePreference) => void;
   reloadLocale: () => Promise<void>;
   t: (key: TranslationKey, params?: Record<string, string | number>) => string;
@@ -82,6 +85,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   const [locale, setLocaleState] = useState<Locale>('en');
   const [localePreference, setLocalePreferenceState] = useState<LocalePreference>('system');
   const [systemLocale, setSystemLocale] = useState('en-US');
+  const [bootstrappedSettings, setBootstrappedSettings] = useState<AppSettings | null>(null);
 
   const applyPreference = useCallback((preference: LocalePreference, nextSystemLocale: string) => {
     const next = resolveLocale(preference, nextSystemLocale);
@@ -93,6 +97,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   const reloadLocale = useCallback(async () => {
     const [nextSystemLocale, settings] = await Promise.all([api.systemLocale(), api.settings()]);
     setSystemLocale(nextSystemLocale);
+    setBootstrappedSettings(settings);
     applyPreference(normalizeLocalePreference(settings.locale), nextSystemLocale);
   }, [applyPreference]);
 
@@ -119,20 +124,28 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   );
   const translateErr = useCallback((error: string) => translateError(error, locale), [locale]);
 
-  return createElement(
-    I18nContext.Provider,
-    {
-      value: {
-        locale,
-        localePreference,
-        setLocalePreference,
-        reloadLocale,
-        t: translate,
-        translateError: translateErr,
-      },
-    },
-    children,
+  const value = useMemo(
+    () => ({
+      locale,
+      localePreference,
+      bootstrappedSettings,
+      setLocalePreference,
+      reloadLocale,
+      t: translate,
+      translateError: translateErr,
+    }),
+    [
+      locale,
+      localePreference,
+      bootstrappedSettings,
+      setLocalePreference,
+      reloadLocale,
+      translate,
+      translateErr,
+    ],
   );
+
+  return createElement(I18nContext.Provider, { value }, children);
 }
 
 export function useTranslation() {

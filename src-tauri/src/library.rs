@@ -239,10 +239,7 @@ pub async fn install_release(
     }
     fs::create_dir_all(base.join("versions")).map_err(|e| e.to_string())?;
     let temporary = base.join(format!(".{}.zip", release.tag));
-    let response = reqwest::Client::builder()
-        .user_agent("Zapretyd/0.4")
-        .build()
-        .map_err(|e| e.to_string())?
+    let response = crate::http::http_client()?
         .get(&release.download_url)
         .send()
         .await
@@ -273,7 +270,11 @@ pub async fn install_release(
     file.flush().await.map_err(|e| e.to_string())?;
     drop(file);
     let hash = format!("{:x}", hasher.finalize());
-    extract_zip(&temporary, &target)?;
+    let extract_tmp = temporary.clone();
+    let extract_target = target.clone();
+    tokio::task::spawn_blocking(move || extract_zip(&extract_tmp, &extract_target))
+        .await
+        .map_err(|e| e.to_string())??;
     flatten_single_root_dir(&target)?;
     let _ = ensure_user_lists(&target);
     let _ = fs::remove_file(&temporary);

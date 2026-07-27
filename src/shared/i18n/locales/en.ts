@@ -111,6 +111,7 @@ export const en = {
   'versions.retry': 'Retry',
   'versions.published': 'Published {{date}} · {{size}}',
   'versions.download': 'Download',
+  'versions.downloadingPercent': 'Downloading… {{percent}}%',
   'versions.reinstall': 'Reinstall',
   'versions.cancel': 'Cancel',
   'versions.reinstallConfirmTitle': 'Reinstall {{tag}}?',

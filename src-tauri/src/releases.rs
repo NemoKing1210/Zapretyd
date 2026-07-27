@@ -1,5 +1,6 @@
 use crate::{
     app::AppState,
+    http::http_client,
     library,
     types::{GithubRelease, ReleaseCatalog, ReleaseInfo, ReleasePage},
 };
@@ -13,14 +14,6 @@ const RELEASES_URL: &str =
 const RELEASE_BY_TAG_URL: &str =
     "https://api.github.com/repos/Flowseal/zapret-discord-youtube/releases/tags";
 const PER_PAGE: u32 = 10;
-const USER_AGENT: &str = "Zapretyd/0.4";
-
-fn http_client() -> Result<reqwest::Client, String> {
-    reqwest::Client::builder()
-        .user_agent(USER_AGENT)
-        .build()
-        .map_err(|e| e.to_string())
-}
 
 fn map_http_status_error(error: reqwest::Error) -> String {
     let message = error.to_string();
@@ -82,11 +75,34 @@ pub async fn refresh_release_catalog(
 
 async fn fetch_and_store_catalog(state: &AppState) -> Result<ReleaseCatalog, String> {
     let client = http_client()?;
-    let latest_response = client
-        .get(LATEST_URL)
+    let cached_etag = state
+        .settings
+        .lock()
+        .ok()
+        .and_then(|s| s.latest_etag.clone());
+    let mut request = client.get(LATEST_URL);
+    if let Some(etag) = cached_etag.as_deref() {
+        request = request.header("If-None-Match", etag);
+    }
+    let latest_response = request
         .send()
         .await
-        .map_err(|e| format!("error.release.fetchFailed|{e}"))?
+        .map_err(|e| format!("error.release.fetchFailed|{e}"))?;
+    if latest_response.status() == reqwest::StatusCode::NOT_MODIFIED {
+        let settings = state.settings.lock().map_err(|e| e.to_string())?;
+        let latest_tag = settings
+            .cached_latest_tag
+            .clone()
+            .ok_or_else(|| "error.release.fetchFailed".to_string())?;
+        let installed = installed_tags_for(state).unwrap_or_default();
+        return Ok(ReleaseCatalog {
+            latest_tag: latest_tag.clone(),
+            from_cache: false,
+            is_newer_than_installed: !installed.iter().any(|tag| tag == &latest_tag),
+            error: None,
+        });
+    }
+    let latest_response = latest_response
         .error_for_status()
         .map_err(map_http_status_error)?;
     let etag = latest_response

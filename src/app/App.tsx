@@ -1,13 +1,12 @@
 import { CssBaseline, ThemeProvider, Box } from '@mui/material';
 import { useColorScheme } from '@mui/material/styles';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import {
   api,
   normalizeThemeMode,
   type AppSettings,
   type InstalledVersion,
   type ReleaseInfo,
-  type ServiceStatus,
 } from '../shared/api/zapretyd';
 import { useTranslation } from '../shared/i18n';
 import { installGlobalErrorHandlers, reportCaughtError } from '../shared/lib/errorLog';
@@ -22,19 +21,183 @@ import { OverviewPage } from '../pages/overview/ui/OverviewPage';
 import { VersionsPage } from '../pages/versions/ui/VersionsPage';
 import { SettingsPage } from '../pages/settings/ui/SettingsPage';
 import { LogsPage } from '../pages/logs/ui/LogsPage';
+import {
+  ServiceStatusProvider,
+  useServiceControls,
+  useServiceStatusApi,
+  useServiceStatusState,
+} from '../features/service-status/ServiceStatusProvider';
 
-function AppBody() {
-  const { t, translateError } = useTranslation();
+const MemoSettingsPage = memo(SettingsPage);
+
+function OverviewRoute({
+  versions,
+  latestTag,
+  showError,
+  refreshAll,
+}: {
+  versions: InstalledVersion[];
+  latestTag?: string;
+  showError: (cause: unknown, source?: string) => void;
+  refreshAll: () => Promise<void>;
+}) {
+  const { status, serviceBusy, onActivate, onStart, onStop, onRemove, onAdmin } = useServiceControls(
+    { onError: showError, refreshAll },
+  );
+  return (
+    <OverviewPage
+      status={status}
+      versions={versions}
+      latestTag={latestTag}
+      serviceBusy={serviceBusy}
+      loadStrategies={api.strategies}
+      onActivate={onActivate}
+      onStart={onStart}
+      onStop={onStop}
+      onRemove={onRemove}
+      onAdmin={onAdmin}
+      onStrategiesError={(cause) => showError(cause, 'service.strategies')}
+    />
+  );
+}
+
+function VersionsRoute({
+  versions,
+  latestTag,
+  libraryPath,
+  releasesNetwork,
+  releasesNetworkError,
+  busy,
+  error,
+  installingTag,
+  downloadRatio,
+  versionsTab,
+  setVersionsTab,
+  setError,
+  install,
+  runAction,
+  markReleasesReachable,
+  showError,
+  refreshAll,
+}: {
+  versions: InstalledVersion[];
+  latestTag?: string;
+  libraryPath?: string;
+  releasesNetwork: 'ok' | 'offline' | 'unreachable';
+  releasesNetworkError?: string;
+  busy: boolean;
+  error: string;
+  installingTag?: string;
+  downloadRatio?: number;
+  versionsTab: 'installed' | 'all';
+  setVersionsTab: (tab: 'installed' | 'all') => void;
+  setError: (error: string) => void;
+  install: (release: ReleaseInfo, force?: boolean) => Promise<void>;
+  runAction: (
+    action: () => Promise<unknown>,
+    successToast?: Pick<ShowToastOptions, 'title' | 'description'>,
+    source?: string,
+  ) => Promise<void>;
+  markReleasesReachable: () => void;
+  showError: (cause: unknown, source?: string) => void;
+  refreshAll: () => Promise<void>;
+}) {
+  const { t } = useTranslation();
+  const { status, serviceBusy, onActivate } = useServiceControls({
+    onError: showError,
+    refreshAll,
+  });
+  return (
+    <VersionsPage
+      versions={versions}
+      latestTag={latestTag}
+      libraryPath={libraryPath}
+      shortenPaths
+      releasesOnline={releasesNetwork !== 'offline'}
+      networkStatus={releasesNetwork}
+      networkError={releasesNetworkError}
+      busy={busy}
+      error={error}
+      installingTag={installingTag}
+      downloadRatio={downloadRatio}
+      isAdmin={Boolean(status?.isAdmin)}
+      activeStrategy={status?.activeStrategy}
+      activateBusy={serviceBusy}
+      view={versionsTab}
+      onViewChange={setVersionsTab}
+      onClearError={() => setError('')}
+      onInstall={install}
+      onActivate={onActivate}
+      onRemove={(tag) =>
+        runAction(
+          () => api.removeVersion(tag),
+          {
+            title: t('toast.versionRemoved.title'),
+            description: t('toast.versionRemoved.body', { tag }),
+          },
+          'library.removeVersion',
+        )
+      }
+      onOpen={(path) => runAction(() => api.openDirectory(path), undefined, 'library.open')}
+      onReleasesReachable={markReleasesReachable}
+    />
+  );
+}
+
+function AppShellConnected({
+  page,
+  onPage,
+  installedCount,
+  syncing,
+  latestTag,
+  latestInstalled,
+  onOpenLatestVersion,
+  children,
+  showError,
+  refreshAll,
+}: {
+  page: PageKey;
+  onPage: (page: PageKey) => void;
+  installedCount: number;
+  syncing?: 'catalog' | 'download';
+  latestTag?: string;
+  latestInstalled: boolean;
+  onOpenLatestVersion: () => void;
+  children: React.ReactNode;
+  showError: (cause: unknown, source?: string) => void;
+  refreshAll: () => Promise<void>;
+}) {
+  const { status } = useServiceStatusState();
+  const { onAdmin } = useServiceControls({ onError: showError, refreshAll });
+  return (
+    <AppShell
+      page={page}
+      onPage={onPage}
+      status={status}
+      installedCount={installedCount}
+      syncing={syncing}
+      latestTag={latestTag}
+      latestInstalled={latestInstalled}
+      onOpenLatestVersion={onOpenLatestVersion}
+      onRelaunchAsAdmin={onAdmin}
+    >
+      {children}
+    </AppShell>
+  );
+}
+
+const AppBody = memo(function AppBody() {
+  const { t, translateError, bootstrappedSettings } = useTranslation();
   const { showToast } = useToast();
   const { setMode } = useColorScheme();
+  const { applyStatus, setPollingEnabled } = useServiceStatusApi();
   const [page, setPage] = useState<PageKey>('overview');
   const [versionsTab, setVersionsTab] = useState<'installed' | 'all'>('installed');
   const [settings, setSettings] = useState<AppSettings>();
   const [versions, setVersions] = useState<InstalledVersion[]>([]);
-  const [status, setStatus] = useState<ServiceStatus>();
   const [busy, setBusy] = useState(false);
   const [installingTag, setInstallingTag] = useState<string>();
-  const [serviceBusy, setServiceBusy] = useState(false);
+  const [downloadRatio, setDownloadRatio] = useState<number>();
   const [error, setError] = useState('');
   const [releasesNetwork, setReleasesNetwork] = useState<'ok' | 'offline' | 'unreachable'>('ok');
   const [releasesNetworkError, setReleasesNetworkError] = useState<string>();
@@ -43,6 +206,8 @@ function AppBody() {
   const translateErrorRef = useRef(translateError);
   const tRef = useRef(t);
   const showToastRef = useRef(showToast);
+  const bootstrappedRef = useRef(false);
+
   useEffect(() => {
     settingsRef.current = settings;
   }, [settings]);
@@ -51,6 +216,10 @@ function AppBody() {
     tRef.current = t;
     showToastRef.current = showToast;
   }, [translateError, t, showToast]);
+
+  useEffect(() => {
+    setPollingEnabled(Boolean(settings));
+  }, [settings, setPollingEnabled]);
 
   const openAllVersions = useCallback(() => {
     setError('');
@@ -71,25 +240,17 @@ function AppBody() {
       severity: 'error',
     });
   }, []);
+
   const refresh = useCallback(async () => {
     try {
       const [nextVersions, nextStatus] = await Promise.all([api.versions(), api.status()]);
       setVersions(nextVersions);
-      setStatus(nextStatus);
+      applyStatus(nextStatus);
     } catch (cause) {
       showError(cause, 'app.refresh');
     }
-  }, [showError]);
-  const refreshStatus = useCallback(async () => {
-    try {
-      setStatus(await api.status());
-    } catch (cause) {
-      reportCaughtError(cause, {
-        source: 'app.statusPoll',
-        translate: translateErrorRef.current,
-      });
-    }
-  }, []);
+  }, [showError, applyStatus]);
+
   const refreshCatalog = useCallback(async () => {
     setCatalogLoading(true);
     try {
@@ -141,37 +302,57 @@ function AppBody() {
       setCatalogLoading(false);
     }
   }, [openAllVersions]);
+
   useEffect(() => installGlobalErrorHandlers(), []);
+
   useEffect(() => {
+    if (bootstrappedRef.current) return;
+    if (!bootstrappedSettings) return;
+    bootstrappedRef.current = true;
     let cancelled = false;
-    api
-      .settings()
-      .then(async (initial) => {
-        if (cancelled) return;
-        setSettings(initial);
-        // Keep ref in sync before catalog refresh — setState alone does not update it yet.
-        settingsRef.current = initial;
-        setMode(normalizeThemeMode(initial.theme));
-        await Promise.all([refresh(), refreshCatalog()]);
-      })
-      .catch((cause) => {
-        if (!cancelled) showError(cause);
-      });
+    setSettings(bootstrappedSettings);
+    settingsRef.current = bootstrappedSettings;
+    setMode(normalizeThemeMode(bootstrappedSettings.theme));
+    void Promise.all([refresh(), refreshCatalog()]).catch((cause) => {
+      if (!cancelled) showError(cause);
+    });
     return () => {
       cancelled = true;
     };
-    // Mount-only bootstrap. Catalog refresh must not re-run when locale/theme settings change.
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only bootstrap
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot bootstrap from i18n
+  }, [bootstrappedSettings]);
+
+  useEffect(() => {
+    if (bootstrappedRef.current || bootstrappedSettings) return;
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      if (bootstrappedRef.current || cancelled) return;
+      api
+        .settings()
+        .then(async (initial) => {
+          if (cancelled || bootstrappedRef.current) return;
+          bootstrappedRef.current = true;
+          setSettings(initial);
+          settingsRef.current = initial;
+          setMode(normalizeThemeMode(initial.theme));
+          await Promise.all([refresh(), refreshCatalog()]);
+        })
+        .catch((cause) => {
+          if (!cancelled) showError(cause);
+        });
+    }, 800);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- delayed fallback if i18n never yields settings
+  }, [bootstrappedSettings]);
+
   useEffect(() => {
     if (!settings) return;
     setMode(normalizeThemeMode(settings.theme));
   }, [settings, setMode]);
-  useEffect(() => {
-    if (!settings) return;
-    const id = window.setInterval(() => void refreshStatus(), 5000);
-    return () => window.clearInterval(id);
-  }, [settings, refreshStatus]);
+
   useEffect(() => {
     const onOnline = () => void refreshCatalog();
     const onOffline = () => {
@@ -184,9 +365,11 @@ function AppBody() {
       window.removeEventListener('offline', onOffline);
     };
   }, [refreshCatalog]);
+
   useEffect(() => {
     if (!import.meta.env.DEV && page === 'logs') setPage('overview');
   }, [page]);
+
   useEffect(() => {
     const root = document.documentElement;
     const allowSelect = page === 'logs';
@@ -201,169 +384,132 @@ function AppBody() {
       root.removeAttribute('data-allow-text-select');
     };
   }, [page]);
-  const saveSettings = async (
-    next: AppSettings,
-    toastKey: 'settingsSaved' | 'themeChanged' | 'languageChanged' = 'settingsSaved',
-  ) => {
-    await api.saveSettings(next);
-    const saved = await api.settings();
-    setSettings(saved);
-    await refresh();
-    showToast({
-      title: t(`toast.${toastKey}.title`),
-      description: t(`toast.${toastKey}.body`),
-    });
-  };
-  const install = async (release: ReleaseInfo, force = false) => {
-    setBusy(true);
-    setInstallingTag(release.tag);
-    setError('');
-    try {
-      await api.install(release, force);
+
+  const saveSettings = useCallback(
+    async (
+      next: AppSettings,
+      toastKey: 'settingsSaved' | 'themeChanged' | 'languageChanged' = 'settingsSaved',
+    ) => {
+      await api.saveSettings(next);
+      const saved = await api.settings();
+      setSettings(saved);
       await refresh();
-      const key = force ? 'versionReinstalled' : 'versionDownloaded';
       showToast({
-        title: t(`toast.${key}.title`),
-        description: t(`toast.${key}.body`, { tag: release.tag }),
+        title: t(`toast.${toastKey}.title`),
+        description: t(`toast.${toastKey}.body`),
       });
-    } catch (cause) {
-      showError(cause, force ? 'library.reinstall' : 'library.install');
-    } finally {
-      setBusy(false);
-      setInstallingTag(undefined);
-    }
-  };
-  const runAction = async (
-    action: () => Promise<unknown>,
-    successToast?: Pick<ShowToastOptions, 'title' | 'description'>,
-    source = 'app.action',
-  ) => {
-    try {
+    },
+    [refresh, showToast, t],
+  );
+
+  const install = useCallback(
+    async (release: ReleaseInfo, force = false) => {
+      setBusy(true);
+      setInstallingTag(release.tag);
+      setDownloadRatio(undefined);
       setError('');
-      await action();
-      await refresh();
-      if (successToast) showToast(successToast);
-    } catch (cause) {
-      showError(cause, source);
-    }
-  };
-  const serviceAction = async (
-    action: () => Promise<unknown>,
-    successToast?: Pick<ShowToastOptions, 'title' | 'description'>,
-    source = 'service',
-  ) => {
-    setServiceBusy(true);
-    try {
-      await runAction(action, successToast, source);
-      // winws / SERVICE_RUNNING can lag a second or two after `sc start`.
-      window.setTimeout(() => void refreshStatus(), 1200);
-      window.setTimeout(() => void refreshStatus(), 3500);
-    } finally {
-      setServiceBusy(false);
-    }
-  };
+      try {
+        const { listen } = await import('@tauri-apps/api/event');
+        const unlisten = await listen<{
+          tag: string;
+          downloaded: number;
+          total?: number | null;
+        }>('download-progress', (event) => {
+          if (event.payload.tag !== release.tag) return;
+          const total = event.payload.total ?? undefined;
+          if (total && total > 0) {
+            setDownloadRatio(Math.min(1, event.payload.downloaded / total));
+          }
+        });
+        try {
+          await api.install(release, force);
+          await refresh();
+          const key = force ? 'versionReinstalled' : 'versionDownloaded';
+          showToast({
+            title: t(`toast.${key}.title`),
+            description: t(`toast.${key}.body`, { tag: release.tag }),
+          });
+        } finally {
+          unlisten();
+        }
+      } catch (cause) {
+        showError(cause, force ? 'library.reinstall' : 'library.install');
+      } finally {
+        setBusy(false);
+        setInstallingTag(undefined);
+        setDownloadRatio(undefined);
+      }
+    },
+    [refresh, showError, showToast, t],
+  );
+
+  const runAction = useCallback(
+    async (
+      action: () => Promise<unknown>,
+      successToast?: Pick<ShowToastOptions, 'title' | 'description'>,
+      source = 'app.action',
+    ) => {
+      try {
+        setError('');
+        await action();
+        await refresh();
+        if (successToast) showToast(successToast);
+      } catch (cause) {
+        showError(cause, source);
+      }
+    },
+    [refresh, showError, showToast],
+  );
+
   const markReleasesReachable = useCallback(() => {
     setReleasesNetwork('ok');
     setReleasesNetworkError(undefined);
   }, []);
+
   const goToPage = useCallback((next: PageKey) => {
     setPage(next);
     setError('');
     if (next === 'versions') setVersionsTab('installed');
   }, []);
+
+  const onSaveSettings = useCallback(
+    (next: AppSettings, reason?: 'theme' | 'locale') =>
+      saveSettings(
+        next,
+        reason === 'theme' ? 'themeChanged' : reason === 'locale' ? 'languageChanged' : 'settingsSaved',
+      ),
+    [saveSettings],
+  );
+
   if (!settings) return null;
+
   const content =
     page === 'overview' ? (
-      <OverviewPage
-        status={status}
+      <OverviewRoute
         versions={versions}
         latestTag={settings.cachedLatestTag}
-        serviceBusy={serviceBusy}
-        loadStrategies={api.strategies}
-        onActivate={(strategy) =>
-          serviceAction(
-            () => api.activate(strategy),
-            {
-              title: t('toast.serviceActivated.title'),
-              description: t('toast.serviceActivated.body'),
-            },
-            'service.activate',
-          )
-        }
-        onStart={() =>
-          serviceAction(
-            api.start,
-            {
-              title: t('toast.serviceStarted.title'),
-              description: t('toast.serviceStarted.body'),
-            },
-            'service.start',
-          )
-        }
-        onStop={() =>
-          serviceAction(
-            api.stop,
-            {
-              title: t('toast.serviceStopped.title'),
-              description: t('toast.serviceStopped.body'),
-            },
-            'service.stop',
-          )
-        }
-        onRemove={() =>
-          serviceAction(
-            api.removeService,
-            {
-              title: t('toast.serviceRemoved.title'),
-              description: t('toast.serviceRemoved.body'),
-            },
-            'service.remove',
-          )
-        }
-        onAdmin={() => serviceAction(api.relaunchAsAdmin, undefined, 'service.relaunchAdmin')}
-        onStrategiesError={(cause) => showError(cause, 'service.strategies')}
+        showError={showError}
+        refreshAll={refresh}
       />
     ) : page === 'versions' ? (
-      <VersionsPage
+      <VersionsRoute
         versions={versions}
         latestTag={settings.cachedLatestTag}
         libraryPath={settings.libraryPath}
-        shortenPaths
-        releasesOnline={releasesNetwork !== 'offline'}
-        networkStatus={releasesNetwork}
-        networkError={releasesNetworkError}
+        releasesNetwork={releasesNetwork}
+        releasesNetworkError={releasesNetworkError}
         busy={busy}
         error={error}
         installingTag={installingTag}
-        isAdmin={Boolean(status?.isAdmin)}
-        activeStrategy={status?.activeStrategy}
-        activateBusy={serviceBusy}
-        view={versionsTab}
-        onViewChange={setVersionsTab}
-        onClearError={() => setError('')}
-        onInstall={install}
-        onActivate={(strategy) =>
-          serviceAction(
-            () => api.activate(strategy),
-            {
-              title: t('toast.serviceActivated.title'),
-              description: t('toast.serviceActivated.body'),
-            },
-            'service.activate',
-          )
-        }
-        onRemove={(tag) =>
-          runAction(
-            () => api.removeVersion(tag),
-            {
-              title: t('toast.versionRemoved.title'),
-              description: t('toast.versionRemoved.body', { tag }),
-            },
-            'library.removeVersion',
-          )
-        }
-        onOpen={(path) => runAction(() => api.openDirectory(path), undefined, 'library.open')}
-        onReleasesReachable={markReleasesReachable}
+        downloadRatio={downloadRatio}
+        versionsTab={versionsTab}
+        setVersionsTab={setVersionsTab}
+        setError={setError}
+        install={install}
+        runAction={runAction}
+        markReleasesReachable={markReleasesReachable}
+        showError={showError}
+        refreshAll={refresh}
       />
     ) : page === 'logs' && import.meta.env.DEV ? (
       <LogsPage
@@ -379,35 +525,22 @@ function AppBody() {
         }}
       />
     ) : (
-      <SettingsPage
-        settings={settings}
-        onSave={(next, reason) =>
-          saveSettings(
-            next,
-            reason === 'theme'
-              ? 'themeChanged'
-              : reason === 'locale'
-                ? 'languageChanged'
-                : 'settingsSaved',
-          )
-        }
-      />
+      <MemoSettingsPage settings={settings} onSave={onSaveSettings} />
     );
+
   return (
     <>
       <WindowChromeSync theme={settings.theme} />
-      <AppShell
+      <AppShellConnected
         page={page}
         onPage={goToPage}
-        status={status}
         installedCount={versions.length}
         syncing={busy ? 'download' : catalogLoading ? 'catalog' : undefined}
         latestTag={settings.cachedLatestTag}
         latestInstalled={versions.some((version) => version.tag === settings.cachedLatestTag)}
         onOpenLatestVersion={openAllVersions}
-        onRelaunchAsAdmin={() =>
-          serviceAction(api.relaunchAsAdmin, undefined, 'service.relaunchAdmin')
-        }
+        showError={showError}
+        refreshAll={refresh}
       >
         <PageTransition pageKey={page}>
           {error && page !== 'versions' && page !== 'logs' && (
@@ -421,17 +554,19 @@ function AppBody() {
           )}
           {content}
         </PageTransition>
-      </AppShell>
+      </AppShellConnected>
     </>
   );
-}
+});
 
 export function App() {
   return (
     <ThemeProvider theme={theme} defaultMode="system">
       <CssBaseline />
       <ToastProvider>
-        <AppBody />
+        <ServiceStatusProvider>
+          <AppBody />
+        </ServiceStatusProvider>
       </ToastProvider>
     </ThemeProvider>
   );

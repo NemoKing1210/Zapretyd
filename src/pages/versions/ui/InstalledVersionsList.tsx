@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, memo } from 'react';
 import { DeleteOutline, ExpandMore, RefreshOutlined } from '@mui/icons-material';
 import {
   Accordion,
@@ -51,7 +51,7 @@ const accordionSx = {
   borderColor: 'divider',
 } as const;
 
-export function InstalledVersionsList({
+export const InstalledVersionsList = memo(function InstalledVersionsList({
   versions,
   latestTag,
   libraryPath,
@@ -396,4 +396,4 @@ export function InstalledVersionsList({
       </Dialog>
     </Stack>
   );
-}
+});

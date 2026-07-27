@@ -113,6 +113,7 @@ export const ru: Record<TranslationKey, string> = {
   'versions.retry': 'Повторить',
   'versions.published': 'Опубликован {{date}} · {{size}}',
   'versions.download': 'Скачать',
+  'versions.downloadingPercent': 'Скачивание… {{percent}}%',
   'versions.reinstall': 'Переустановить',
   'versions.cancel': 'Отмена',
   'versions.reinstallConfirmTitle': 'Переустановить {{tag}}?',
